@@ -2,10 +2,14 @@ from app.database.connection import Base, engine
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database.models import Project
+from app.projects.router import router as projects_router
 
 app = FastAPI(title="ShipForge API")
 
 Base.metadata.create_all(bind=engine)
+
+app.include_router(projects_router)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
