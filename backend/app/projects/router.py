@@ -12,7 +12,7 @@ router = APIRouter(
 )
 
 
-@router.post("/", response_model=ProjectResponse)
+@router.post("/", response_model=ProjectResponse, status_code=201)
 def create_project_endpoint(
     project_data: ProjectCreate,
     db: Session = Depends(get_db),

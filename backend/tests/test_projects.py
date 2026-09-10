@@ -15,10 +15,10 @@ def test_create_project(client):
         },
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 201
 
     data = response.json()
-    
+
     assert data["name"] == "Test Project"
     assert data["description"] == "Created by pytest"
     assert data["repository_url"] == "https://github.com/example/test-project"
@@ -55,7 +55,6 @@ def test_get_projects(client):
     assert len(data) == 2
     assert data[0]["name"] == "Project One"
     assert data[1]["name"] == "Project Two"
-
 
 
 def test_get_project(client):
