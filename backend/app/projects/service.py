@@ -1,10 +1,7 @@
-from sqlalchemy.orm import Session
-
 from app.database.models import Project
-from app.projects.schemas import ProjectCreate
-
+from app.projects.schemas import ProjectCreate, ProjectUpdate
 from sqlalchemy import select
-
+from sqlalchemy.orm import Session
 
 
 def create_project(db: Session, project_data: ProjectCreate) -> Project:
@@ -35,3 +32,36 @@ def get_project(db: Session, project_id: int) -> Project | None:
     result = db.execute(statement)
 
     return result.scalar_one_or_none()
+
+
+def update_project(
+    db: Session,
+    project_id: int,
+    project_data: ProjectUpdate,
+) -> Project | None:
+    project = get_project(db, project_id)
+
+    if project is None:
+        return None
+
+    update_data = project_data.model_dump(exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(project, field, value)
+
+    db.commit()
+    db.refresh(project)
+
+    return project
+
+
+def delete_project(db: Session, project_id: int) -> bool:
+    project = get_project(db, project_id)
+
+    if project is None:
+        return False
+
+    db.delete(project)
+    db.commit()
+
+    return True

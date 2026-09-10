@@ -18,3 +18,9 @@ class ProjectResponse(BaseModel):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+# represents modifying an existing project.
+class ProjectUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    repository_url: str | None = None
