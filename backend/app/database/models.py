@@ -2,8 +2,16 @@ from datetime import datetime, timezone
 from enum import Enum as PyEnum
 
 from app.database.connection import Base
-from sqlalchemy import DateTime, ForeignKey, String, Text
-from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import (
+    DateTime,
+    ForeignKey,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy import (
+    Enum as SQLEnum,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 
@@ -52,6 +60,14 @@ class BuildStatus(str, PyEnum):
 class Build(Base):
     __tablename__ = "builds"
 
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "build_number",
+            name="uq_build_project_number",
+        ),
+    )
+
     id: Mapped[int] = mapped_column(
         primary_key=True,
         autoincrement=True,
@@ -59,6 +75,10 @@ class Build(Base):
 
     project_id: Mapped[int] = mapped_column(
         ForeignKey("projects.id"),
+        nullable=False,
+    )
+
+    build_number: Mapped[int] = mapped_column(
         nullable=False,
     )
 

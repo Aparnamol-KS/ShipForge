@@ -12,6 +12,7 @@ class BuildCreate(BaseModel):
 class BuildResponse(BaseModel):
     id: int
     project_id: int
+    build_number: int
     status: BuildStatus
     created_at: datetime
     started_at: datetime | None

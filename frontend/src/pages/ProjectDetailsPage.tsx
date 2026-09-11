@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+
 import {
     Link,
     useNavigate,
@@ -6,17 +7,33 @@ import {
 } from "react-router-dom";
 
 import {
+    createBuild,
+    getBuilds,
     getProject,
+    type Build,
     type Project,
 } from "../api/projects";
+
+import BuildList from "../components/BuildList";
 
 function ProjectDetailsPage() {
     const { projectId } = useParams();
     const navigate = useNavigate();
 
-    const [project, setProject] = useState<Project | null>(null);
+    const [project, setProject] = useState<Project | null>(
+        null,
+    );
+
+    const [builds, setBuilds] = useState<Build[]>([]);
+
     const [loading, setLoading] = useState(true);
+    const [buildsLoading, setBuildsLoading] = useState(true);
+    const [creatingBuild, setCreatingBuild] = useState(false);
+
     const [error, setError] = useState<string | null>(null);
+    const [buildError, setBuildError] = useState<string | null>(
+        null,
+    );
 
     useEffect(() => {
         const loadProject = async () => {
@@ -27,9 +44,7 @@ function ProjectDetailsPage() {
             }
 
             try {
-                const data = await getProject(
-                    Number(projectId),
-                );
+                const data = await getProject(Number(projectId));
 
                 setProject(data);
             } catch {
@@ -41,6 +56,48 @@ function ProjectDetailsPage() {
 
         loadProject();
     }, [projectId]);
+
+    useEffect(() => {
+        const loadBuilds = async () => {
+            if (!projectId) {
+                return;
+            }
+
+            try {
+                const data = await getBuilds(Number(projectId));
+
+                setBuilds(data);
+            } catch {
+                setBuildError("Failed to load builds");
+            } finally {
+                setBuildsLoading(false);
+            }
+        };
+
+        loadBuilds();
+    }, [projectId]);
+
+    const handleCreateBuild = async () => {
+        if (!projectId) {
+            return;
+        }
+
+        setCreatingBuild(true);
+        setBuildError(null);
+
+        try {
+            const build = await createBuild(Number(projectId));
+
+            setBuilds((currentBuilds) => [
+                build,
+                ...currentBuilds,
+            ]);
+        } catch {
+            setBuildError("Failed to create build");
+        } finally {
+            setCreatingBuild(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -138,7 +195,7 @@ function ProjectDetailsPage() {
                 <section className="mb-8">
                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                         <div>
-                            <div className="flex items-center gap-3">
+                            <div className="flex flex-wrap items-center gap-3">
                                 <h1 className="text-3xl font-semibold tracking-tight text-white">
                                     {project.name}
                                 </h1>
@@ -193,6 +250,54 @@ function ProjectDetailsPage() {
                             </div>
                         )}
                     </div>
+                </section>
+
+                {/* Builds */}
+                <section className="mb-6">
+                    <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h2 className="text-sm font-semibold text-zinc-200">
+                                Builds
+                            </h2>
+
+                            <p className="mt-1 text-xs text-zinc-600">
+                                Build history for this project.
+                            </p>
+                        </div>
+
+                        <button
+                            type="button"
+                            onClick={handleCreateBuild}
+                            disabled={creatingBuild}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                            {creatingBuild && (
+                                <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                            )}
+
+                            {creatingBuild
+                                ? "Starting..."
+                                : "Run build"}
+                        </button>
+                    </div>
+
+                    {buildError && (
+                        <div className="mb-4 rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">
+                            {buildError}
+                        </div>
+                    )}
+
+                    {buildsLoading ? (
+                        <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 px-6 py-10 text-center">
+                            <div className="mx-auto mb-3 h-4 w-4 animate-spin rounded-full border-2 border-zinc-700 border-t-indigo-500" />
+
+                            <p className="text-sm text-zinc-500">
+                                Loading builds...
+                            </p>
+                        </div>
+                    ) : (
+                        <BuildList builds={builds} />
+                    )}
                 </section>
 
                 {/* Project information */}
