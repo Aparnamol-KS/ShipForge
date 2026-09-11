@@ -134,3 +134,154 @@ def test_build_numbers_are_project_specific(client: TestClient):
     assert first_build.json()["build_number"] == 1
     assert second_build.json()["build_number"] == 2
     assert third_build.json()["build_number"] == 1
+
+
+
+def test_transition_build_to_running(client: TestClient):
+    project_id = create_test_project(client)
+
+    create_response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+
+    build_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={
+            "status": "running",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "running"
+    assert data["started_at"] is not None
+    assert data["finished_at"] is None
+
+
+def test_transition_build_to_success(client: TestClient):
+    project_id = create_test_project(client)
+
+    create_response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+
+    build_id = create_response.json()["id"]
+
+    client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={
+            "status": "running",
+        },
+    )
+
+    response = client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={
+            "status": "success",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "success"
+    assert data["started_at"] is not None
+    assert data["finished_at"] is not None
+
+
+
+def test_transition_build_to_failed(client: TestClient):
+    project_id = create_test_project(client)
+
+    create_response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+
+    build_id = create_response.json()["id"]
+
+    client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={
+            "status": "running",
+        },
+    )
+
+    response = client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={
+            "status": "failed",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "failed"
+    assert data["started_at"] is not None
+    assert data["finished_at"] is not None
+
+def test_invalid_queued_to_success_transition(
+    client: TestClient,
+):
+    project_id = create_test_project(client)
+
+    create_response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+
+    build_id = create_response.json()["id"]
+
+    response = client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={
+            "status": "success",
+        },
+    )
+
+    assert response.status_code == 400
+
+    assert response.json()["detail"] == "Cannot transition build from queued to success"
+
+def test_invalid_success_to_running_transition(
+    client: TestClient,
+):
+    project_id = create_test_project(client)
+
+    create_response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+
+    build_id = create_response.json()["id"]
+
+    client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={
+            "status": "running",
+        },
+    )
+
+    client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={
+            "status": "success",
+        },
+    )
+
+    response = client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={
+            "status": "running",
+        },
+    )
+
+    assert response.status_code == 400
+
+    assert (
+        response.json()["detail"] == "Cannot transition build from success to running"
+    )

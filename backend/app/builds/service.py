@@ -5,6 +5,11 @@ from app.database.models import (
 )
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
+
+
+from app.builds.exceptions import InvalidBuildTransitionError
+
 
 
 def create_build(
@@ -69,3 +74,56 @@ def get_build(
     result = db.execute(statement)
 
     return result.scalar_one_or_none()
+
+
+def transition_build(
+    db: Session,
+    project_id: int,
+    build_id: int,
+    new_status: BuildStatus,
+) -> Build | None:
+    build = get_build(
+        db,
+        project_id,
+        build_id,
+    )
+
+    if build is None:
+        return None
+
+    current_status = build.status
+
+    allowed_transitions = {
+        BuildStatus.QUEUED: {
+            BuildStatus.RUNNING,
+        },
+        BuildStatus.RUNNING: {
+            BuildStatus.SUCCESS,
+            BuildStatus.FAILED,
+        },
+        BuildStatus.SUCCESS: set(),
+        BuildStatus.FAILED: set(),
+    }
+
+    if new_status not in allowed_transitions[current_status]:
+        raise InvalidBuildTransitionError(
+            f"Cannot transition build from {current_status.value} to {new_status.value}"
+        )
+
+    now = datetime.now(timezone.utc)
+
+    build.status = new_status
+
+    if new_status == BuildStatus.RUNNING:
+        build.started_at = now
+
+    if new_status in {
+        BuildStatus.SUCCESS,
+        BuildStatus.FAILED,
+    }:
+        build.finished_at = now
+
+    db.commit()
+    db.refresh(build)
+
+    return build

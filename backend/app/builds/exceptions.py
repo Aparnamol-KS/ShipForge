@@ -1,0 +1,2 @@
+class InvalidBuildTransitionError(Exception):
+    pass

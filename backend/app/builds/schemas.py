@@ -19,3 +19,6 @@ class BuildResponse(BaseModel):
     finished_at: datetime | None
 
     model_config = ConfigDict(from_attributes=True)
+
+class BuildStatusUpdate(BaseModel):
+    status: BuildStatus
