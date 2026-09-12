@@ -287,7 +287,10 @@ def test_invalid_success_to_running_transition(
         response.json()["detail"] == "Cannot transition build from success to running"
     )
 
-def test_run_build_success(client):
+
+
+
+def test_run_build_success(client, tmp_path):
     project_id = create_test_project(client)
 
     response = client.post(f"/projects/{project_id}/builds/")
@@ -296,10 +299,15 @@ def test_run_build_success(client):
 
     build_id = response.json()["id"]
 
+    hello_file = tmp_path / "hello.py"
+
+    hello_file.write_text("print('Hello from ShipForge')")
+
     run_build(
         project_id,
         build_id,
-        sleep_fn=lambda seconds: None,
+        workspace=tmp_path,
+        command="python hello.py",
         session_factory=TestSessionLocal,
     )
 
