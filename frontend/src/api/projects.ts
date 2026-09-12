@@ -70,3 +70,23 @@ export const createBuild = async (
 
     return response.data;
 };
+
+
+export interface BuildLog {
+    id: number;
+    build_id: number;
+    output: string;
+    created_at: string;
+}
+
+
+export const getBuildLogs = async (
+    projectId: number,
+    buildId: number,
+): Promise<BuildLog[]> => {
+    const response = await apiClient.get<BuildLog[]>(
+        `/projects/${projectId}/builds/${buildId}/logs`,
+    );
+
+    return response.data;
+};

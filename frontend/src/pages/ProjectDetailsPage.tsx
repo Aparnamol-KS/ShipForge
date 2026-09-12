@@ -12,6 +12,8 @@ import {
     getProject,
     type Build,
     type Project,
+    getBuildLogs,
+    type BuildLog
 } from "../api/projects";
 
 import BuildList from "../components/BuildList";
@@ -34,6 +36,9 @@ function ProjectDetailsPage() {
     const [buildError, setBuildError] = useState<string | null>(
         null,
     );
+    const [selectedBuildId, setSelectedBuildId] = useState<number | null>(null);
+    const [buildLogs, setBuildLogs] = useState<BuildLog[]>([]);
+    const [logsLoading, setLogsLoading] = useState(false);
 
     useEffect(() => {
         const loadProject = async () => {
@@ -115,6 +120,28 @@ function ProjectDetailsPage() {
             setBuildError("Failed to create build");
         } finally {
             setCreatingBuild(false);
+        }
+    };
+
+    const handleViewLogs = async (buildId: number) => {
+        if (!projectId) {
+            return;
+        }
+
+        setSelectedBuildId(buildId);
+        setLogsLoading(true);
+
+        try {
+            const data = await getBuildLogs(
+                Number(projectId),
+                buildId,
+            );
+
+            setBuildLogs(data);
+        } catch {
+            setBuildLogs([]);
+        } finally {
+            setLogsLoading(false);
         }
     };
 
@@ -315,7 +342,45 @@ function ProjectDetailsPage() {
                             </p>
                         </div>
                     ) : (
-                        <BuildList builds={builds} />
+                            <BuildList
+                                builds={builds}
+                                onViewLogs={handleViewLogs}
+                            />
+                        
+                            
+                    )}
+                    {selectedBuildId !== null && (
+                        <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900/50">
+                            <div className="border-b border-zinc-800 px-5 py-4">
+                                <h2 className="text-sm font-semibold text-zinc-200">
+                                    Build #
+                                    {
+                                        builds.find(
+                                            (build) => build.id === selectedBuildId,
+                                        )?.build_number
+                                    }{" "}
+                                    Logs
+                                </h2>
+                            </div>
+
+                            <div className="p-5">
+                                {logsLoading ? (
+                                    <p className="text-sm text-zinc-500">
+                                        Loading logs...
+                                    </p>
+                                ) : buildLogs.length === 0 ? (
+                                    <p className="text-sm text-zinc-500">
+                                        No logs available.
+                                    </p>
+                                ) : (
+                                    <pre className="overflow-x-auto rounded-lg bg-zinc-950 p-4 font-mono text-sm leading-6 text-zinc-300">
+                                        {buildLogs
+                                            .map((log) => log.output)
+                                            .join("\n")}
+                                    </pre>
+                                )}
+                            </div>
+                        </div>
                     )}
                 </section>
 

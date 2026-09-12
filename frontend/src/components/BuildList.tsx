@@ -2,6 +2,7 @@ import type { Build } from "../api/projects";
 
 interface BuildListProps {
     builds: Build[];
+    onViewLogs: (buildId: number) => void;
 }
 
 const statusStyles: Record<
@@ -40,6 +41,7 @@ function formatDate(date: string): string {
 
 function BuildList({
     builds,
+    onViewLogs,
 }: BuildListProps) {
     if (builds.length === 0) {
         return (
@@ -90,6 +92,7 @@ function BuildList({
                                 <p className="mt-1 font-mono text-[11px] text-zinc-600">
                                     project_{build.project_id}
                                 </p>
+                                
                             </div>
                         </div>
 
@@ -113,6 +116,13 @@ function BuildList({
                                 {formatDate(build.created_at)}
                             </span>
                         </div>
+                        <button
+                            type="button"
+                            onClick={() => onViewLogs(build.id)}
+                            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white"
+                        >
+                            View logs
+                        </button>
                     </div>
                 );
             })}

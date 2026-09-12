@@ -11,6 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.builds.tasks import schedule_build
 from app.builds.log_service import get_build_logs
+from pathlib import Path
 
 router = APIRouter(
     prefix="/projects/{project_id}/builds",
@@ -40,6 +41,8 @@ def create_build_endpoint(
         background_tasks,
         project_id,
         build.id,
+        workspace=Path("workspaces/demo"),
+        command="python hello.py",
     )
 
     return build
