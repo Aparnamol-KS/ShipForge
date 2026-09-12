@@ -1,5 +1,3 @@
-import time
-
 from sqlalchemy.orm import Session
 
 from app.builds.service import transition_build
@@ -8,6 +6,7 @@ from app.database.models import BuildStatus
 from pathlib import Path
 
 from app.builds.docker_executor import run_command
+from app.builds.log_service import create_build_log
 
 
 def run_build(
@@ -31,7 +30,11 @@ def run_build(
             command,
             workspace=workspace,
         )
-
+        create_build_log(
+            db,
+            build_id,
+            output,
+        )
         if exit_code == 0:
             transition_build(
                 db,

@@ -1,8 +1,5 @@
 from app.builds.exceptions import InvalidBuildTransitionError
-from app.builds.schemas import (
-    BuildResponse,
-    BuildStatusUpdate,
-)
+from app.builds.schemas import BuildResponse, BuildStatusUpdate, BuildLogResponse
 from app.builds.service import (
     create_build,
     get_build,
@@ -13,6 +10,7 @@ from app.database.connection import get_db
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.builds.tasks import schedule_build
+from app.builds.log_service import get_build_logs
 
 router = APIRouter(
     prefix="/projects/{project_id}/builds",
@@ -107,3 +105,30 @@ def transition_build_endpoint(
         )
 
     return build
+
+
+@router.get(
+    "/{build_id}/logs",
+    response_model=list[BuildLogResponse],
+)
+def get_logs(
+    project_id: int,
+    build_id: int,
+    db: Session = Depends(get_db),
+):
+    build = get_build(
+        db,
+        project_id,
+        build_id,
+    )
+
+    if build is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Build not found",
+        )
+
+    return get_build_logs(
+        db,
+        build_id,
+    )

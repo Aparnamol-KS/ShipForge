@@ -22,3 +22,11 @@ class BuildResponse(BaseModel):
 
 class BuildStatusUpdate(BaseModel):
     status: BuildStatus
+
+class BuildLogResponse(BaseModel):
+    id: int
+    build_id: int
+    output: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)

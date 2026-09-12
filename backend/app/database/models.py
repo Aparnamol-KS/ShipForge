@@ -102,3 +102,27 @@ class Build(Base):
         DateTime(timezone=True),
         nullable=True,
     )
+
+
+class BuildLog(Base):
+    __tablename__ = "build_logs"
+
+    id: Mapped[int] = mapped_column(
+        primary_key=True,
+        autoincrement=True,
+    )
+
+    build_id: Mapped[int] = mapped_column(
+        ForeignKey("builds.id"),
+        nullable=False,
+    )
+
+    output: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+    )

@@ -1,6 +1,10 @@
-from fastapi.testclient import TestClient
+from app.builds.log_service import create_build_log
 from app.builds.runner import run_build
+from app.database.models import BuildLog
 from app.database.test_database import TestSessionLocal
+from fastapi.testclient import TestClient
+from sqlalchemy import select
+
 
 def create_test_project(client: TestClient) -> int:
     response = client.post(
@@ -137,7 +141,6 @@ def test_build_numbers_are_project_specific(client: TestClient):
     assert third_build.json()["build_number"] == 1
 
 
-
 def test_transition_build_to_running(client: TestClient):
     project_id = create_test_project(client)
 
@@ -195,7 +198,6 @@ def test_transition_build_to_success(client: TestClient):
     assert data["finished_at"] is not None
 
 
-
 def test_transition_build_to_failed(client: TestClient):
     project_id = create_test_project(client)
 
@@ -227,6 +229,7 @@ def test_transition_build_to_failed(client: TestClient):
     assert data["started_at"] is not None
     assert data["finished_at"] is not None
 
+
 def test_invalid_queued_to_success_transition(
     client: TestClient,
 ):
@@ -248,6 +251,7 @@ def test_invalid_queued_to_success_transition(
     assert response.status_code == 400
 
     assert response.json()["detail"] == "Cannot transition build from queued to success"
+
 
 def test_invalid_success_to_running_transition(
     client: TestClient,
@@ -288,8 +292,6 @@ def test_invalid_success_to_running_transition(
     )
 
 
-
-
 def test_run_build_success(client, tmp_path):
     project_id = create_test_project(client)
 
@@ -320,3 +322,98 @@ def test_run_build_success(client, tmp_path):
     assert build["status"] == "success"
     assert build["started_at"] is not None
     assert build["finished_at"] is not None
+    db = TestSessionLocal()
+
+    try:
+        statement = select(BuildLog).where(BuildLog.build_id == build_id)
+
+        log = db.execute(statement).scalar_one()
+
+        assert "Hello from ShipForge" in log.output
+    finally:
+        db.close()
+
+
+def test_create_build_log(client):
+    project_id = create_test_project(client)
+
+    response = client.post(f"/projects/{project_id}/builds/")
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    db = TestSessionLocal()
+
+    try:
+        log = create_build_log(
+            db,
+            build_id,
+            "Running tests...\n23 passed",
+        )
+
+        assert log.id is not None
+        assert log.build_id == build_id
+        assert log.output == "Running tests...\n23 passed"
+        assert log.created_at is not None
+    finally:
+        db.close()
+
+
+def test_run_build_failure(client, tmp_path):
+    project_id = create_test_project(client)
+    response = client.post(f"/projects/{project_id}/builds/")
+    assert response.status_code == 201
+    build_id = response.json()["id"]
+    run_build(
+        project_id,
+        build_id,
+        workspace=tmp_path,
+        command="python -c \"raise Exception('build failed')\"",
+        session_factory=TestSessionLocal,
+    )
+    response = client.get(f"/projects/{project_id}/builds/{build_id}")
+    assert response.status_code == 200
+    build = response.json()
+    assert build["status"] == "failed"
+    assert build["started_at"] is not None
+    assert build["finished_at"] is not None
+    db = TestSessionLocal()
+    try:
+        statement = select(BuildLog).where(BuildLog.build_id == build_id)
+        log = db.execute(statement).scalar_one()
+        assert "build failed" in log.output
+    finally:
+        db.close()
+
+
+def test_get_build_logs(client, tmp_path):
+    project_id = create_test_project(client)
+
+    response = client.post(f"/projects/{project_id}/builds/")
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    hello_file = tmp_path / "hello.py"
+
+    hello_file.write_text("print('Hello from ShipForge')")
+
+    run_build(
+        project_id,
+        build_id,
+        workspace=tmp_path,
+        command="python hello.py",
+        session_factory=TestSessionLocal,
+    )
+
+    response = client.get(f"/projects/{project_id}/builds/{build_id}/logs")
+
+    assert response.status_code == 200
+
+    logs = response.json()
+
+    assert len(logs) == 1
+    assert logs[0]["build_id"] == build_id
+    assert "Hello from ShipForge" in logs[0]["output"]
