@@ -11,7 +11,7 @@ def client(monkeypatch):
     # Whenever the router tries to schedule a build during a test, do nothing
     monkeypatch.setattr(
         "app.builds.router.schedule_build",
-        lambda *args: None,
+        lambda *args, **kwargs: None,
     )
 
     Base.metadata.create_all(bind=test_engine)

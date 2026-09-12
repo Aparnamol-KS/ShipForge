@@ -305,12 +305,24 @@ def test_run_build_success(client, tmp_path):
 
     hello_file.write_text("print('Hello from ShipForge')")
 
+    def fake_clone(repository_url, workspace):
+        (workspace / "hello.py").write_text(
+            "print('Hello from ShipForge')"
+        )
+
+
+    def fake_runner(command, workspace):
+        return 0, "Hello from ShipForge\n"
+
+
     run_build(
         project_id,
         build_id,
-        workspace=tmp_path,
+        repository_url="https://example.com/test.git",
         command="python hello.py",
         session_factory=TestSessionLocal,
+        repository_cloner=fake_clone,
+        command_runner=fake_runner,
     )
 
     response = client.get(f"/projects/{project_id}/builds/{build_id}")
@@ -365,12 +377,22 @@ def test_run_build_failure(client, tmp_path):
     response = client.post(f"/projects/{project_id}/builds/")
     assert response.status_code == 201
     build_id = response.json()["id"]
+    def fake_clone(repository_url, workspace):
+        pass
+
+
+    def fake_runner(command, workspace):
+        return 1, "build failed\n"
+
+
     run_build(
         project_id,
         build_id,
-        workspace=tmp_path,
-        command="python -c \"raise Exception('build failed')\"",
+        repository_url="https://example.com/test.git",
+        command="python hello.py",
         session_factory=TestSessionLocal,
+        repository_cloner=fake_clone,
+        command_runner=fake_runner,
     )
     response = client.get(f"/projects/{project_id}/builds/{build_id}")
     assert response.status_code == 200
@@ -400,12 +422,24 @@ def test_get_build_logs(client, tmp_path):
 
     hello_file.write_text("print('Hello from ShipForge')")
 
+    def fake_clone(repository_url, workspace):
+        (workspace / "hello.py").write_text(
+            "print('Hello from ShipForge')"
+        )
+
+
+    def fake_runner(command, workspace):
+        return 0, "Hello from ShipForge\n"
+
+
     run_build(
         project_id,
         build_id,
-        workspace=tmp_path,
+        repository_url="https://example.com/test.git",
         command="python hello.py",
         session_factory=TestSessionLocal,
+        repository_cloner=fake_clone,
+        command_runner=fake_runner,
     )
 
     response = client.get(f"/projects/{project_id}/builds/{build_id}/logs")
