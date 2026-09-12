@@ -6,14 +6,18 @@ from app.database.models import Project
 from app.database.test_database import TestSessionLocal, test_engine
 from app.main import app
 
-
 @pytest.fixture
-def client():
+def client(monkeypatch):
+    # Whenever the router tries to schedule a build during a test, do nothing
+    monkeypatch.setattr(
+        "app.builds.router.schedule_build",
+        lambda *args: None,
+    )
+
     Base.metadata.create_all(bind=test_engine)
 
     def override_get_db():
         db = TestSessionLocal()
-
         try:
             yield db
         finally:

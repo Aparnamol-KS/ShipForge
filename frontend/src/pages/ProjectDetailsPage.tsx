@@ -58,23 +58,42 @@ function ProjectDetailsPage() {
     }, [projectId]);
 
     useEffect(() => {
-        const loadBuilds = async () => {
-            if (!projectId) {
-                return;
-            }
+        if (!projectId) {
+            return;
+        }
 
+        let cancelled = false;
+
+        const loadBuilds = async () => {
             try {
                 const data = await getBuilds(Number(projectId));
 
-                setBuilds(data);
+                if (!cancelled) {
+                    setBuilds(data);
+                    setBuildError(null);
+                }
             } catch {
-                setBuildError("Failed to load builds");
+                if (!cancelled) {
+                    setBuildError("Failed to load builds");
+                }
             } finally {
-                setBuildsLoading(false);
+                if (!cancelled) {
+                    setBuildsLoading(false);
+                }
             }
         };
 
         loadBuilds();
+
+        const interval = window.setInterval(
+            loadBuilds,
+            1000,
+        );
+
+        return () => {
+            cancelled = true;
+            window.clearInterval(interval);
+        };
     }, [projectId]);
 
     const handleCreateBuild = async () => {

@@ -1,5 +1,6 @@
 from fastapi.testclient import TestClient
-
+from app.builds.runner import run_build
+from app.database.test_database import TestSessionLocal
 
 def create_test_project(client: TestClient) -> int:
     response = client.post(
@@ -285,3 +286,29 @@ def test_invalid_success_to_running_transition(
     assert (
         response.json()["detail"] == "Cannot transition build from success to running"
     )
+
+def test_run_build_success(client):
+    project_id = create_test_project(client)
+
+    response = client.post(f"/projects/{project_id}/builds/")
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    run_build(
+        project_id,
+        build_id,
+        sleep_fn=lambda seconds: None,
+        session_factory=TestSessionLocal,
+    )
+
+    response = client.get(f"/projects/{project_id}/builds/{build_id}")
+
+    assert response.status_code == 200
+
+    build = response.json()
+
+    assert build["status"] == "success"
+    assert build["started_at"] is not None
+    assert build["finished_at"] is not None

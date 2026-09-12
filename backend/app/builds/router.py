@@ -10,8 +10,9 @@ from app.builds.service import (
     transition_build,
 )
 from app.database.connection import get_db
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
+from app.builds.tasks import schedule_build
 
 router = APIRouter(
     prefix="/projects/{project_id}/builds",
@@ -19,9 +20,14 @@ router = APIRouter(
 )
 
 
-@router.post("/", response_model=BuildResponse, status_code=201)
+@router.post(
+    "/",
+    response_model=BuildResponse,
+    status_code=201,
+)
 def create_build_endpoint(
     project_id: int,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     build = create_build(db, project_id)
@@ -32,8 +38,13 @@ def create_build_endpoint(
             detail="Project not found",
         )
 
-    return build
+    schedule_build(
+        background_tasks,
+        project_id,
+        build.id,
+    )
 
+    return build
 
 @router.get(
     "/",
