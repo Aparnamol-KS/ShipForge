@@ -6,19 +6,17 @@ from fastapi.testclient import TestClient
 from sqlalchemy import select
 
 
-def create_test_project(client: TestClient) -> int:
+def create_test_project(client: TestClient):
     response = client.post(
         "/projects/",
         json={
-            "name": "Build Test Project",
-            "description": "Project for build tests",
+            "name": "Test Project",
+            "repository_url": "https://example.com/test.git",
+            "build_command": "pytest",
         },
     )
 
-    assert response.status_code == 201
-
     return response.json()["id"]
-
 
 def test_create_build(client: TestClient):
     project_id = create_test_project(client)
@@ -37,6 +35,43 @@ def test_create_build(client: TestClient):
     assert data["started_at"] is None
     assert data["finished_at"] is None
 
+
+def test_create_build_without_repository_url(client: TestClient):
+    response = client.post(
+        "/projects/",
+        json={
+            "name": "Test Project",
+            "build_command": "pytest",
+        },
+    )
+
+    project_id = response.json()["id"]
+
+    response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == ("Project repository URL is required")
+
+
+def test_create_build_without_build_command(client: TestClient):
+    response = client.post(
+        "/projects/",
+        json={
+            "name": "Test Project",
+            "repository_url": "https://example.com/test.git",
+        },
+    )
+
+    project_id = response.json()["id"]
+
+    response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == ("Project build command is required")
 
 def test_get_builds(client: TestClient):
     project_id = create_test_project(client)

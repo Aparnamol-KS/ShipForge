@@ -7,6 +7,7 @@ class ProjectCreate(BaseModel):
     name: str
     description: str | None = None
     repository_url: str | None = None
+    build_command: str | None = None
 
 # represents what our API sends back
 class ProjectResponse(BaseModel):
@@ -14,6 +15,7 @@ class ProjectResponse(BaseModel):
     name: str
     description: str | None
     repository_url: str | None
+    build_command: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -24,3 +26,4 @@ class ProjectUpdate(BaseModel):
     name: str | None = None
     description: str | None = None
     repository_url: str | None = None
+    build_command: str | None = None

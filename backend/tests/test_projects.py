@@ -12,6 +12,7 @@ def test_create_project(client):
             "name": "Test Project",
             "description": "Created by pytest",
             "repository_url": "https://github.com/example/test-project",
+            "build_command": "pytest",
         },
     )
 
@@ -22,6 +23,7 @@ def test_create_project(client):
     assert data["name"] == "Test Project"
     assert data["description"] == "Created by pytest"
     assert data["repository_url"] == "https://github.com/example/test-project"
+    assert data["build_command"] == "pytest"
     assert "id" in data
     assert "created_at" in data
     assert "updated_at" in data
@@ -34,6 +36,7 @@ def test_get_projects(client):
             "name": "Project One",
             "description": "First test project",
             "repository_url": "https://github.com/example/project-one",
+            "build_command": "pytest",
         },
     )
 
@@ -43,6 +46,7 @@ def test_get_projects(client):
             "name": "Project Two",
             "description": "Second test project",
             "repository_url": "https://github.com/example/project-two",
+            "build_command": "pytest",
         },
     )
 
@@ -64,6 +68,7 @@ def test_get_project(client):
             "name": "Single Project",
             "description": "Testing single project retrieval",
             "repository_url": "https://github.com/example/single",
+            "build_command": "pytest",
         },
     )
 
@@ -93,6 +98,7 @@ def test_update_project(client):
             "name": "Original Name",
             "description": "Original description",
             "repository_url": "https://github.com/example/original",
+            "build_command": "pytest",
         },
     )
 
@@ -113,6 +119,7 @@ def test_update_project(client):
     assert data["name"] == "Updated Name"
     assert data["description"] == "Original description"
     assert data["repository_url"] == "https://github.com/example/original"
+    assert data["build_command"] == "pytest"
 
 
 def test_update_project_not_found(client):
@@ -134,6 +141,7 @@ def test_delete_project(client):
             "name": "Project To Delete",
             "description": "This project will be deleted",
             "repository_url": "https://github.com/example/delete",
+            "build_command": "pytest",
         },
     )
 

@@ -9,6 +9,7 @@ def create_project(db: Session, project_data: ProjectCreate) -> Project:
         name=project_data.name,
         description=project_data.description,
         repository_url=project_data.repository_url,
+        build_command=project_data.build_command,
     )
 
     db.add(project)

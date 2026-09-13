@@ -11,7 +11,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.builds.tasks import schedule_build
 from app.builds.log_service import get_build_logs
-from pathlib import Path
+from app.projects.service import get_project
+
 
 router = APIRouter(
     prefix="/projects/{project_id}/builds",
@@ -29,7 +30,33 @@ def create_build_endpoint(
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    build = create_build(db, project_id)
+    project = get_project(
+        db,
+        project_id,
+    )
+
+    if project is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Project not found",
+        )
+
+    if not project.repository_url:
+        raise HTTPException(
+            status_code=400,
+            detail="Project repository URL is required",
+        )
+
+    if not project.build_command:
+        raise HTTPException(
+            status_code=400,
+            detail="Project build command is required",
+        )
+
+    build = create_build(
+        db,
+        project_id,
+    )
 
     if build is None:
         raise HTTPException(
@@ -41,11 +68,13 @@ def create_build_endpoint(
         background_tasks,
         project_id,
         build.id,
-        workspace=Path("workspaces/demo"),
-        command="python hello.py",
+        repository_url=project.repository_url,
+        command=project.build_command,
     )
 
     return build
+
+
 
 @router.get(
     "/",
