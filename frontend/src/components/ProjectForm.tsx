@@ -15,6 +15,7 @@ function ProjectForm({
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
     const [repositoryUrl, setRepositoryUrl] = useState("");
+    const [buildCommand, setBuildCommand] = useState("");
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +32,7 @@ function ProjectForm({
                 name,
                 description: description || undefined,
                 repository_url: repositoryUrl || undefined,
+                build_command: buildCommand || undefined
             });
 
             onProjectCreated(project);
@@ -38,6 +40,7 @@ function ProjectForm({
             setName("");
             setDescription("");
             setRepositoryUrl("");
+            setBuildCommand("");
         } catch {
             setError("Failed to create project");
         } finally {
@@ -113,13 +116,29 @@ function ProjectForm({
 
                     <input
                         id="repository-url"
-                        type="url"
+                        type="text"
                         value={repositoryUrl}
-                        onChange={(event) =>
-                            setRepositoryUrl(event.target.value)
-                        }
-                        placeholder="https://github.com/username/repository"
-                        className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3.5 py-2.5 font-mono text-sm text-zinc-100 outline-none transition placeholder:text-zinc-700 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20"
+                        onChange={(event) => setRepositoryUrl(event.target.value)}
+                        placeholder="https://github.com/user/repository"
+                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
+                    />
+                </div>
+
+                <div>
+                    <label
+                        htmlFor="build-command"
+                        className="mb-2 block text-sm font-medium text-zinc-300"
+                    >
+                        Build Command
+                    </label>
+
+                    <input
+                        id="build-command"
+                        type="text"
+                        value={buildCommand}
+                        onChange={(event) => setBuildCommand(event.target.value)}
+                        placeholder="python hello.py"
+                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
                     />
                 </div>
 

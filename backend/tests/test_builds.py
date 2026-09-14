@@ -1,6 +1,6 @@
 from app.builds.log_service import create_build_log
 from app.builds.runner import run_build
-from app.database.models import BuildLog
+from app.database.models import BuildLog, BuildStatus
 from app.database.test_database import TestSessionLocal
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -442,6 +442,98 @@ def test_run_build_failure(client, tmp_path):
         assert "build failed" in log.output
     finally:
         db.close()
+
+
+def test_run_build_repository_failure(client):
+    project_id = create_test_project(client)
+
+    response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    def fake_clone(repository_url, workspace):
+        raise RuntimeError("Repository could not be cloned")
+
+    run_build(
+        project_id,
+        build_id,
+        repository_url="https://example.com/test.git",
+        command="python hello.py",
+        session_factory=TestSessionLocal,
+        repository_cloner=fake_clone,
+    )
+
+    response = client.get(
+        f"/projects/{project_id}/builds/{build_id}",
+    )
+
+    assert response.status_code == 200
+
+    build = response.json()
+
+    assert build["status"] == BuildStatus.FAILED
+
+    response = client.get(
+        f"/projects/{project_id}/builds/{build_id}/logs",
+    )
+
+    assert response.status_code == 200
+
+    logs = response.json()
+
+    assert len(logs) == 1
+    assert "Repository could not be cloned" in logs[0]["output"]
+
+
+def test_run_build_cleans_workspace_after_failure(client, tmp_path):
+    project_id = create_test_project(client)
+
+    response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    workspace = tmp_path / "build-workspace"
+    cleanup_called = False
+
+    def fake_workspace_factory():
+        workspace.mkdir()
+        return workspace
+
+    def fake_clone(repository_url, destination):
+        raise RuntimeError("Repository could not be cloned")
+
+    def fake_cleanup(path):
+        nonlocal cleanup_called
+
+        cleanup_called = True
+
+        if path.exists():
+            import shutil
+
+            shutil.rmtree(path)
+
+    run_build(
+        project_id,
+        build_id,
+        repository_url="https://example.com/test.git",
+        command="python hello.py",
+        session_factory=TestSessionLocal,
+        workspace_factory=fake_workspace_factory,
+        repository_cloner=fake_clone,
+        workspace_cleaner=fake_cleanup,
+    )
+
+    assert cleanup_called is True
+    assert workspace.exists() is False
+
 
 
 def test_get_build_logs(client, tmp_path):

@@ -13,6 +13,7 @@ from app.database.connection import SessionLocal
 from app.database.models import BuildStatus
 from app.repositories.service import clone_repository
 
+
 def run_build(
     project_id: int,
     build_id: int,
@@ -67,6 +68,22 @@ def run_build(
                 build_id,
                 BuildStatus.FAILED,
             )
+
+    except Exception as error:
+        error_output = f"Build failed:\n{error}"
+
+        create_build_log(
+            db,
+            build_id,
+            error_output,
+        )
+
+        transition_build(
+            db,
+            project_id,
+            build_id,
+            BuildStatus.FAILED,
+        )
 
     finally:
         if workspace is not None:

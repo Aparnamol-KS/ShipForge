@@ -5,6 +5,7 @@ export interface Project {
     name: string;
     description: string | null;
     repository_url: string | null;
+    build_command: string | null;
     created_at: string;
     updated_at: string;
 }
@@ -13,6 +14,7 @@ export interface ProjectCreate {
     name: string;
     description?: string;
     repository_url?: string;
+    build_command?: string;
 }
 
 export interface Build {
