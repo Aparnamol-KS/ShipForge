@@ -10,6 +10,7 @@ import {
     createBuild,
     getBuilds,
     getProject,
+    updateProject,
     type Build,
     type Project,
     getBuildLogs,
@@ -31,6 +32,14 @@ function ProjectDetailsPage() {
     const [loading, setLoading] = useState(true);
     const [buildsLoading, setBuildsLoading] = useState(true);
     const [creatingBuild, setCreatingBuild] = useState(false);
+    const [editing, setEditing] = useState(false);
+
+    const [editName, setEditName] = useState("");
+    const [editDescription, setEditDescription] = useState("");
+    const [editRepositoryUrl, setEditRepositoryUrl] = useState("");
+    const [editBuildCommand, setEditBuildCommand] = useState("");
+    const [savingProject, setSavingProject] = useState(false);
+    const [editError, setEditError] = useState<string | null>(null);
 
     const [error, setError] = useState<string | null>(null);
     const [buildError, setBuildError] = useState<string | null>(
@@ -145,6 +154,34 @@ function ProjectDetailsPage() {
         }
     };
 
+    const handleSaveProject = async () => {
+        if (!projectId) {
+            return;
+        }
+
+        setSavingProject(true);
+        setEditError(null);
+
+        try {
+            const updatedProject = await updateProject(
+                Number(projectId),
+                {
+                    name: editName,
+                    description: editDescription,
+                    repository_url: editRepositoryUrl,
+                    build_command: editBuildCommand,
+                },
+            );
+
+            setProject(updatedProject);
+            setEditing(false);
+        } catch {
+            setEditError("Failed to update project");
+        } finally {
+            setSavingProject(false);
+        }
+    };
+
     if (loading) {
         return (
             <main className="flex min-h-screen items-center justify-center bg-zinc-950">
@@ -239,62 +276,201 @@ function ProjectDetailsPage() {
 
                 {/* Project heading */}
                 <section className="mb-8">
-                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <div>
-                            <div className="flex flex-wrap items-center gap-3">
-                                <h1 className="text-3xl font-semibold tracking-tight text-white">
-                                    {project.name}
-                                </h1>
+                    {editing ? (
+                        <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6">
+                            <h2 className="text-sm font-semibold text-zinc-200">
+                                Edit project
+                            </h2>
 
-                                <div className="flex items-center gap-2 rounded-full border border-emerald-900/40 bg-emerald-950/30 px-2.5 py-1">
-                                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                            <div className="mt-5 space-y-5">
+                                {/* Project name */}
+                                <div>
+                                    <label className="text-xs uppercase tracking-wider text-zinc-600">
+                                        Project name
+                                    </label>
 
-                                    <span className="text-xs font-medium text-emerald-400">
-                                        Ready
-                                    </span>
+                                    <input
+                                        type="text"
+                                        value={editName}
+                                        onChange={(event) => setEditName(event.target.value)}
+                                        className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-200 outline-none transition placeholder:text-zinc-700 focus:border-indigo-500"
+                                    />
+                                </div>
+
+                                {/* Description */}
+                                <div>
+                                    <label className="text-xs uppercase tracking-wider text-zinc-600">
+                                        Description
+                                    </label>
+
+                                    <textarea
+                                        value={editDescription}
+                                        onChange={(event) =>
+                                            setEditDescription(event.target.value)
+                                        }
+                                        rows={3}
+                                        className="mt-2 w-full resize-none rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 text-sm text-zinc-200 outline-none transition placeholder:text-zinc-700 focus:border-indigo-500"
+                                    />
+                                </div>
+
+                                {/* Repository URL */}
+                                <div>
+                                    <label className="text-xs uppercase tracking-wider text-zinc-600">
+                                        Repository URL
+                                    </label>
+
+                                    <input
+                                        type="text"
+                                        value={editRepositoryUrl}
+                                        onChange={(event) =>
+                                            setEditRepositoryUrl(event.target.value)
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 font-mono text-sm text-zinc-200 outline-none transition placeholder:text-zinc-700 focus:border-indigo-500"
+                                    />
+                                </div>
+
+                                {/* Build command */}
+                                <div>
+                                    <label className="text-xs uppercase tracking-wider text-zinc-600">
+                                        Build command
+                                    </label>
+
+                                    <input
+                                        type="text"
+                                        value={editBuildCommand}
+                                        onChange={(event) =>
+                                            setEditBuildCommand(event.target.value)
+                                        }
+                                        className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 font-mono text-sm text-zinc-200 outline-none transition placeholder:text-zinc-700 focus:border-indigo-500"
+                                    />
                                 </div>
                             </div>
 
-                            <p className="mt-2 font-mono text-xs text-zinc-600">
-                                project_{project.id}
-                            </p>
-                        </div>
-                    </div>
+                            {editError && (
+                                <div className="mt-5 rounded-lg border border-red-900/50 bg-red-950/30 px-4 py-3 text-sm text-red-400">
+                                    {editError}
+                                </div>
+                            )}
 
-                    {project.description && (
+                            <div className="mt-6 flex justify-end gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setEditing(false)}
+                                    disabled={savingProject}
+                                    className="rounded-lg border border-zinc-800 px-4 py-2.5 text-sm font-medium text-zinc-400 transition hover:bg-zinc-800 hover:text-zinc-200 disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={handleSaveProject}
+                                    disabled={savingProject}
+                                    className="rounded-lg bg-indigo-500 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-indigo-400 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {savingProject ? "Saving..." : "Save changes"}
+                                </button>
+                            </div>
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div>
+                                <div className="flex flex-wrap items-center gap-3">
+                                    <h1 className="text-3xl font-semibold tracking-tight text-white">
+                                        {project.name}
+                                    </h1>
+
+                                    <div className="flex items-center gap-2 rounded-full border border-emerald-900/40 bg-emerald-950/30 px-2.5 py-1">
+                                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+
+                                        <span className="text-xs font-medium text-emerald-400">
+                                            Ready
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <p className="mt-2 font-mono text-xs text-zinc-600">
+                                    project_{project.id}
+                                </p>
+                            </div>
+
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setEditName(project.name);
+                                    setEditDescription(project.description ?? "");
+                                    setEditRepositoryUrl(project.repository_url ?? "");
+                                    setEditBuildCommand(project.build_command ?? "");
+                                    setEditError(null);
+                                    setEditing(true);
+                                }}
+                                className="rounded-lg border border-zinc-800 bg-zinc-900 px-4 py-2 text-sm font-medium text-zinc-300 transition hover:border-zinc-700 hover:bg-zinc-800 hover:text-white"
+                            >
+                                Edit project
+                            </button>
+                        </div>
+                    )}
+
+                    {!editing && project.description && (
                         <p className="mt-5 max-w-2xl text-sm leading-6 text-zinc-500">
                             {project.description}
                         </p>
                     )}
                 </section>
 
-                {/* Repository */}
+                {/* Configuration */}
                 <section className="mb-6">
                     <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6">
                         <h2 className="text-sm font-semibold text-zinc-200">
-                            Repository
+                            Configuration
                         </h2>
 
-                        {project.repository_url ? (
-                            <a
-                                href={project.repository_url}
-                                target="_blank"
-                                rel="noreferrer"
-                                className="mt-4 block truncate rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 font-mono text-sm text-indigo-400 transition hover:border-zinc-700 hover:text-indigo-300"
-                            >
-                                {project.repository_url}
-                            </a>
-                        ) : (
-                            <div className="mt-4 rounded-lg border border-dashed border-zinc-800 bg-zinc-950/50 px-4 py-6 text-center">
-                                <p className="text-sm text-zinc-500">
-                                    No repository connected.
+                        <div className="mt-5 space-y-5">
+                            {/* Repository */}
+                            <div>
+                                <p className="text-xs uppercase tracking-wider text-zinc-600">
+                                    Repository
                                 </p>
 
-                                <p className="mt-1 text-xs text-zinc-700">
-                                    GitHub integration will be available here.
-                                </p>
+                                {project.repository_url ? (
+                                    <a
+                                        href={project.repository_url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="mt-2 block truncate rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3 font-mono text-sm text-indigo-400 transition hover:border-zinc-700 hover:text-indigo-300"
+                                    >
+                                        {project.repository_url}
+                                    </a>
+                                ) : (
+                                    <div className="mt-2 rounded-lg border border-dashed border-zinc-800 bg-zinc-950/50 px-4 py-4">
+                                        <p className="text-sm text-zinc-500">
+                                            No repository connected.
+                                        </p>
+                                    </div>
+                                )}
                             </div>
-                        )}
+
+                            {/* Build command */}
+                            <div>
+                                <p className="text-xs uppercase tracking-wider text-zinc-600">
+                                    Build command
+                                </p>
+
+                                {project.build_command ? (
+                                    <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3">
+                                        <code className="font-mono text-sm text-zinc-300">
+                                            {project.build_command}
+                                        </code>
+                                    </div>
+                                ) : (
+                                    <div className="mt-2 rounded-lg border border-dashed border-zinc-800 bg-zinc-950/50 px-4 py-4">
+                                        <p className="text-sm text-zinc-500">
+                                            No build command configured.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </section>
 
@@ -342,12 +518,12 @@ function ProjectDetailsPage() {
                             </p>
                         </div>
                     ) : (
-                            <BuildList
-                                builds={builds}
-                                onViewLogs={handleViewLogs}
-                            />
-                        
-                            
+                        <BuildList
+                            builds={builds}
+                            onViewLogs={handleViewLogs}
+                        />
+
+
                     )}
                     {selectedBuildId !== null && (
                         <div className="mt-6 rounded-xl border border-zinc-800 bg-zinc-900/50">

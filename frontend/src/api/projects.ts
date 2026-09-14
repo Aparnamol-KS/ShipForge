@@ -17,6 +17,13 @@ export interface ProjectCreate {
     build_command?: string;
 }
 
+export interface ProjectUpdate {
+    name?: string;
+    description?: string;
+    repository_url?: string;
+    build_command?: string;
+}
+
 export interface Build {
     id: number;
     project_id: number;
@@ -47,6 +54,18 @@ export const createProject = async (
 ): Promise<Project> => {
     const response = await apiClient.post<Project>(
         "/projects/",
+        project,
+    );
+
+    return response.data;
+};
+
+export const updateProject = async (
+    projectId: number,
+    project: ProjectUpdate,
+): Promise<Project> => {
+    const response = await apiClient.patch<Project>(
+        `/projects/${projectId}`,
         project,
     );
 
