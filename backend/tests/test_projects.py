@@ -1,3 +1,6 @@
+from app.database.test_database import TestSessionLocal
+from app.projects.service import get_project_by_repository
+
 def test_health_check(client):
     response = client.get("/health")
 
@@ -89,6 +92,54 @@ def test_get_project_not_found(client):
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Project not found"}
+
+
+def test_get_project_by_repository(client):
+    repository_url = "https://github.com/example/repository-test"
+
+    response = client.post(
+        "/projects/",
+        json={
+            "name": "Repository Test Project",
+            "description": "Testing repository lookup",
+            "repository_url": repository_url,
+            "build_command": "pytest",
+        },
+    )
+
+    assert response.status_code == 201
+
+    db = TestSessionLocal()
+
+    try:
+        project = get_project_by_repository(
+            db,
+            repository_url,
+        )
+
+        assert project is not None
+        assert project.name == "Repository Test Project"
+        assert project.repository_url == repository_url
+
+    finally:
+        db.close()
+
+
+
+def test_get_project_by_repository_not_found(client):
+    db = TestSessionLocal()
+
+    try:
+        project = get_project_by_repository(
+            db,
+            "https://github.com/example/does-not-exist",
+        )
+
+        assert project is None
+
+    finally:
+        db.close()
+
 
 
 def test_update_project(client):

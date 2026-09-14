@@ -34,6 +34,16 @@ def get_project(db: Session, project_id: int) -> Project | None:
 
     return result.scalar_one_or_none()
 
+def get_project_by_repository(
+    db: Session,
+    repository_url: str,
+) -> Project | None:
+    statement = select(Project).where(Project.repository_url == repository_url)
+
+    result = db.execute(statement)
+
+    return result.scalar_one_or_none()
+
 
 def update_project(
     db: Session,
