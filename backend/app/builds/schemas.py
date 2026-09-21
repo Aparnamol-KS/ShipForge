@@ -13,6 +13,8 @@ class BuildResponse(BaseModel):
     id: int
     project_id: int
     build_number: int
+    branch: str | None
+    commit_sha: str | None
     status: BuildStatus
     created_at: datetime
     started_at: datetime | None

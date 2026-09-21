@@ -94,6 +94,16 @@ function BuildList({
                                 </p>
                                 
                             </div>
+                            <div className="text-sm text-gray-400">
+                                {build.branch && build.commit_sha ? (
+                                    <>
+                                        {build.branch.replace("refs/heads/", "")} ·{" "}
+                                        {build.commit_sha.slice(0, 7)}
+                                    </>
+                                ) : (
+                                    "Manual build"
+                                )}
+                            </div>
                         </div>
 
                         {/* Status + date */}

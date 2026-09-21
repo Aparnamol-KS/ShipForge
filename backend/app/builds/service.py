@@ -15,7 +15,9 @@ from app.builds.exceptions import InvalidBuildTransitionError
 def create_build(
     db: Session,
     project_id: int,
-) -> Build | None:
+    branch: str | None = None,
+    commit_sha: str | None = None,
+):
     statement = select(Project).where(Project.id == project_id).with_for_update()
 
     result = db.execute(statement)
@@ -38,6 +40,8 @@ def create_build(
     build = Build(
         project_id=project_id,
         build_number=next_build_number,
+        branch=branch,
+        commit_sha=commit_sha,
         status=BuildStatus.QUEUED,
     )
 

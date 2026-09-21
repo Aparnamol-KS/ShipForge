@@ -93,6 +93,16 @@ class Build(Base):
         nullable=False,
     )
 
+    branch: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+    )
+
+    commit_sha: Mapped[str | None] = mapped_column(
+        String(40),
+        nullable=True,
+    )
+
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         default=lambda: datetime.now(timezone.utc),

@@ -28,6 +28,8 @@ export interface Build {
     id: number;
     project_id: number;
     build_number: number;
+    branch: string | null;
+    commit_sha: string | null;
     status: "queued" | "running" | "success" | "failed";
     created_at: string;
     started_at: string | null;

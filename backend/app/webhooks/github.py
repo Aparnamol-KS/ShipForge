@@ -73,6 +73,8 @@ async def github_webhook(
     build = create_build(
         db,
         project.id,
+        branch=branch,
+        commit_sha=commit_sha,
     )
 
     if not project.build_command:

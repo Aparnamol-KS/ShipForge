@@ -1,6 +1,8 @@
 import hashlib
 import hmac
 import json
+from app.database.test_database import TestSessionLocal
+from app.database.models import Build
 
 def test_github_webhook_creates_build(client):
     repository_url = "https://github.com/example/webhook-build"
@@ -63,6 +65,19 @@ def test_github_webhook_creates_build(client):
     assert data["repository_url"] == repository_url
     assert data["branch"] == "refs/heads/main"
     assert data["commit_sha"] == "abc123"
+
+    db = TestSessionLocal()
+
+
+    try:
+        build = db.query(Build).filter(Build.id == data["build_id"]).first()
+
+        assert build is not None
+        assert build.branch == "refs/heads/main"
+        assert build.commit_sha == "abc123"
+
+    finally:
+        db.close()
 
 
 def test_github_webhook_rejects_missing_signature(client):
