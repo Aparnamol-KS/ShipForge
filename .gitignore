@@ -31,3 +31,4 @@ __pycache__
 workspaces/*
 !workspaces/gitkeep
 shipforge-demo-repo/
+.env

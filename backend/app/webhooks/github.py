@@ -1,9 +1,11 @@
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, BackgroundTasks,HTTPException
 from sqlalchemy.orm import Session
-
+import os
 from app.projects.service import get_project_by_repository
 from app.builds.service import create_build
 from app.database.connection import get_db
+from app.builds.tasks import schedule_build
+from app.webhooks.security import verify_github_signature
 
 
 router = APIRouter(
@@ -15,15 +17,42 @@ router = APIRouter(
 @router.post("/github")
 async def github_webhook(
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
-    payload = await request.json()
+    payload = await request.body()
 
-    repository = payload.get("repository", {})
+    signature = request.headers.get(
+        "X-Hub-Signature-256"
+    )
+
+    secret = os.getenv(
+        "GITHUB_WEBHOOK_SECRET"
+    )
+
+    if not secret:
+        raise HTTPException(
+            status_code=500,
+            detail="GitHub webhook secret is not configured",
+        )
+
+    if not verify_github_signature(
+        payload,
+        signature,
+        secret,
+    ):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid GitHub webhook signature",
+        )
+
+    data = await request.json()
+
+    repository = data.get("repository", {})
 
     repository_url = repository.get("clone_url")
-    branch = payload.get("ref")
-    commit_sha = payload.get("after")
+    branch = data.get("ref")
+    commit_sha = data.get("after")
 
     if not repository_url:
         return {
@@ -45,6 +74,21 @@ async def github_webhook(
         db,
         project.id,
     )
+
+    if not project.build_command:
+        return {
+            "message": "Project build command is required",
+            "project_id": project.id,
+        }
+
+    schedule_build(
+        background_tasks,
+        project.id,
+        build.id,
+        repository_url=project.repository_url,
+        command=project.build_command,
+    )
+    
 
     return {
         "message": "Build queued",

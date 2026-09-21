@@ -5,6 +5,9 @@ from app.database.models import Project
 from app.projects.router import router as projects_router
 from app.builds.router import router as builds_router
 from app.webhooks.github import router as github_webhook_router
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = FastAPI(title="ShipForge API")
 
