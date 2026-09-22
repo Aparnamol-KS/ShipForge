@@ -7,7 +7,7 @@ from app.builds.service import (
     transition_build,
 )
 from app.database.connection import get_db
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.builds.tasks import schedule_build
 from app.builds.log_service import get_build_logs
@@ -29,7 +29,6 @@ router = APIRouter(
 )
 def create_build_endpoint(
     project_id: int,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     project = get_project(
@@ -67,11 +66,8 @@ def create_build_endpoint(
         )
 
     schedule_build(
-        background_tasks,
-        project_id,
-        build.id,
-        repository_url=project.repository_url,
-        command=project.build_command,
+        project_id=project_id,
+        build_id=build.id,
     )
 
     return build

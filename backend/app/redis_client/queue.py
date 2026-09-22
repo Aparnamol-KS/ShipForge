@@ -24,3 +24,19 @@ def dequeue_build() -> dict | None:
         return None
 
     return json.loads(job)
+
+
+def wait_for_build(
+    timeout: int = 0,
+) -> dict | None:
+    result = redis_client.blpop(
+        BUILD_QUEUE,
+        timeout=timeout,
+    )
+
+    if result is None:
+        return None
+
+    _, job = result
+
+    return json.loads(job)

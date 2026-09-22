@@ -78,7 +78,10 @@ def test_worker_processes_build(tmp_path, client):
     finally:
         db.close()
 
-    run_worker(once=True)
+    run_worker(
+        once=True,
+        session_factory=TestSessionLocal,
+    )
 
     db = TestSessionLocal()
 

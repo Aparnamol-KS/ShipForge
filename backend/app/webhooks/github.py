@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request, BackgroundTasks,HTTPException
+from fastapi import APIRouter, Depends, Request,HTTPException
 from sqlalchemy.orm import Session
 import os
 from app.projects.service import get_project_by_repository
@@ -17,7 +17,6 @@ router = APIRouter(
 @router.post("/github")
 async def github_webhook(
     request: Request,
-    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
 ):
     payload = await request.body()
@@ -84,11 +83,8 @@ async def github_webhook(
         }
 
     schedule_build(
-        background_tasks,
-        project.id,
-        build.id,
-        repository_url=project.repository_url,
-        command=project.build_command,
+        project_id=project.id,
+        build_id=build.id,
     )
     
 

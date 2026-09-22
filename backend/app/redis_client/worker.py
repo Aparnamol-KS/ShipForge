@@ -1,8 +1,8 @@
 from app.builds.runner import run_build
 from app.database.connection import SessionLocal
 from app.database.models import Build, Project
-from app.redis_client.queue import dequeue_build
-
+from app.redis_client.queue import wait_for_build
+from app.redis_client.events import publish_build_event
 
 def run_worker(
     once: bool = False,
@@ -11,7 +11,7 @@ def run_worker(
     print("ShipForge worker started.")
 
     while True:
-        job = dequeue_build()
+        job = wait_for_build()
 
         if job is None:
             if once:
@@ -52,6 +52,7 @@ def run_worker(
                 repository_url=project.repository_url,
                 command=project.build_command,
                 session_factory=session_factory,
+                event_publisher=publish_build_event,
             )
 
         finally:

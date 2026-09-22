@@ -13,6 +13,7 @@ from app.database.connection import SessionLocal
 from app.database.models import BuildStatus
 from app.repositories.service import clone_repository
 from app.builds.websocket import manager
+from app.redis_client.events import publish_build_event
 
 
 def run_build(
@@ -111,6 +112,14 @@ def run_build(
             build_id,
             BuildStatus.FAILED,
         )
+        if event_publisher:
+            event_publisher(
+                build_id,
+                {
+                    "type": "status",
+                    "status": BuildStatus.FAILED.value,
+                },
+            )
 
     finally:
         if workspace is not None:
