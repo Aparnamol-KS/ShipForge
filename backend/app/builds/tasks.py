@@ -1,7 +1,6 @@
 from app.builds.runner import run_build
 from fastapi import BackgroundTasks
 
-
 def schedule_build(
     background_tasks: BackgroundTasks,
     project_id: int,

@@ -19,8 +19,10 @@ def test_real_build_pipeline(client, tmp_path):
     )
 
     hello_file = source_repo / "hello.py"
+
     hello_file.write_text(
-        'print("Hello from ShipForge!")\nprint("Real pipeline works!")\n'
+        'print("Hello from ShipForge!")\n'
+        'print("Real pipeline works!")\n'
     )
 
     subprocess.run(
@@ -60,6 +62,16 @@ def test_real_build_pipeline(client, tmp_path):
 
     assert response.status_code == 201
 
+    events = []
+
+    def publish_event(build_id, event):
+        events.append(
+            {
+                "build_id": build_id,
+                "event": event,
+            }
+        )
+
     project_id = response.json()["id"]
 
     # Create the build
@@ -78,6 +90,7 @@ def test_real_build_pipeline(client, tmp_path):
         repository_url=str(source_repo),
         command="python hello.py",
         session_factory=TestSessionLocal,
+        event_publisher=publish_event,
     )
 
     # Verify build status
@@ -90,6 +103,24 @@ def test_real_build_pipeline(client, tmp_path):
     build = response.json()
 
     assert build["status"] == BuildStatus.SUCCESS.value
+
+    # Verify events
+    assert events == [
+        {
+            "build_id": build_id,
+            "event": {
+                "type": "status",
+                "status": BuildStatus.RUNNING.value,
+            },
+        },
+        {
+            "build_id": build_id,
+            "event": {
+                "type": "status",
+                "status": BuildStatus.SUCCESS.value,
+            },
+        },
+    ]
 
     # Verify logs
     response = client.get(

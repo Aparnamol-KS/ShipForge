@@ -12,6 +12,7 @@ from app.builds.workspace_service import (
 from app.database.connection import SessionLocal
 from app.database.models import BuildStatus
 from app.repositories.service import clone_repository
+from app.builds.websocket import manager
 
 
 def run_build(
@@ -24,6 +25,7 @@ def run_build(
     repository_cloner=clone_repository,
     command_runner=run_command,
     workspace_cleaner=cleanup_workspace,
+    event_publisher=None,
 ) -> None:
     db: Session = session_factory()
     workspace: Path | None = None
@@ -35,6 +37,14 @@ def run_build(
             build_id,
             BuildStatus.RUNNING,
         )
+        if event_publisher:
+            event_publisher(
+                build_id,
+                {
+                    "type": "status",
+                    "status": BuildStatus.RUNNING.value,
+                },
+            )
 
         workspace = workspace_factory()
 
@@ -61,6 +71,14 @@ def run_build(
                 build_id,
                 BuildStatus.SUCCESS,
             )
+            if event_publisher:
+                event_publisher(
+                    build_id,
+                    {
+                        "type": "status",
+                        "status": BuildStatus.SUCCESS.value,
+                    },
+                )
         else:
             transition_build(
                 db,
@@ -68,6 +86,15 @@ def run_build(
                 build_id,
                 BuildStatus.FAILED,
             )
+
+            if event_publisher:
+                event_publisher(
+                    build_id,
+                    {
+                        "type": "status",
+                        "status": BuildStatus.FAILED.value,
+                    },
+                )
 
     except Exception as error:
         error_output = f"Build failed:\n{error}"

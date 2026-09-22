@@ -12,7 +12,9 @@ from sqlalchemy.orm import Session
 from app.builds.tasks import schedule_build
 from app.builds.log_service import get_build_logs
 from app.projects.service import get_project
-
+from fastapi import WebSocket
+from app.builds.websocket import manager
+import asyncio
 
 router = APIRouter(
     prefix="/projects/{project_id}/builds",
@@ -164,3 +166,22 @@ def get_logs(
         db,
         build_id,
     )
+
+@router.websocket("/{build_id}/ws")
+async def build_websocket(
+    websocket: WebSocket,
+    build_id: int,
+):
+    await manager.connect(
+        build_id,
+        websocket,
+    )
+
+    try:
+        while True:
+            await websocket.receive_text()
+    except Exception:
+        manager.disconnect(
+            build_id,
+            websocket,
+        )
