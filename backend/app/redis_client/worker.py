@@ -11,7 +11,7 @@ def run_worker(
     print("ShipForge worker started.")
 
     while True:
-        job = wait_for_build()
+        job = wait_for_build(timeout=1)
 
         if job is None:
             if once:

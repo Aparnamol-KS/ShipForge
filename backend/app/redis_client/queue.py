@@ -27,7 +27,7 @@ def dequeue_build() -> dict | None:
 
 
 def wait_for_build(
-    timeout: int = 0,
+    timeout: int = 1,
 ) -> dict | None:
     result = redis_client.blpop(
         BUILD_QUEUE,

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useBuildWebSocket } from "../hooks/useBuildWebSocket";
 
 import {
     Link,
@@ -71,32 +72,26 @@ function ProjectDetailsPage() {
         loadProject();
     }, [projectId]);
 
-    useEffect(() => {
+    const loadBuilds = async () => {
         if (!projectId) {
             return;
         }
 
-        let cancelled = false;
+        try {
+            const data = await getBuilds(Number(projectId));
 
-        const loadBuilds = async () => {
-            try {
-                const data = await getBuilds(Number(projectId));
+            setBuilds(data);
+            setBuildError(null);
+        } catch {
+            setBuildError("Failed to load builds");
+        } finally {
+            setBuildsLoading(false);
+        }
+    };
 
-                if (!cancelled) {
-                    setBuilds(data);
-                    setBuildError(null);
-                }
-            } catch {
-                if (!cancelled) {
-                    setBuildError("Failed to load builds");
-                }
-            } finally {
-                if (!cancelled) {
-                    setBuildsLoading(false);
-                }
-            }
-        };
+    
 
+    useEffect(() => {
         loadBuilds();
 
         const interval = window.setInterval(
@@ -105,10 +100,10 @@ function ProjectDetailsPage() {
         );
 
         return () => {
-            cancelled = true;
             window.clearInterval(interval);
         };
     }, [projectId]);
+
 
     const handleCreateBuild = async () => {
         if (!projectId) {
@@ -119,12 +114,8 @@ function ProjectDetailsPage() {
         setBuildError(null);
 
         try {
-            const build = await createBuild(Number(projectId));
-
-            setBuilds((currentBuilds) => [
-                build,
-                ...currentBuilds,
-            ]);
+            await createBuild(Number(projectId));
+            await loadBuilds();
         } catch {
             setBuildError("Failed to create build");
         } finally {
@@ -153,6 +144,22 @@ function ProjectDetailsPage() {
             setLogsLoading(false);
         }
     };
+
+    const handleBuildEvent = (event: {
+        type: "status" | "log";
+        status?: string;
+        output?: string;
+    }) => {
+        if (event.type === "status") {
+            loadBuilds();
+        }
+    };
+
+    useBuildWebSocket({
+        projectId: projectId ? Number(projectId) : null,
+        buildId: selectedBuildId,
+        onEvent: handleBuildEvent,
+    });
 
     const handleSaveProject = async () => {
         if (!projectId) {

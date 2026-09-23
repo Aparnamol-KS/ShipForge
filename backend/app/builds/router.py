@@ -14,6 +14,7 @@ from app.builds.log_service import get_build_logs
 from app.projects.service import get_project
 from fastapi import WebSocket
 from app.builds.websocket import manager
+from app.builds.event_listener import forward_build_events
 import asyncio
 
 router = APIRouter(
@@ -168,14 +169,13 @@ async def build_websocket(
     websocket: WebSocket,
     build_id: int,
 ):
-    await manager.connect(
-        build_id,
-        websocket,
-    )
+    await manager.connect(build_id, websocket)
 
     try:
-        while True:
-            await websocket.receive_text()
+        await forward_build_events(
+            build_id,
+            websocket,
+        )
     except Exception:
         manager.disconnect(
             build_id,
