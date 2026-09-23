@@ -17,5 +17,20 @@ services:
     ports:
       - "6379:6379"
 
+  worker:
+    build:
+      context: ./backend
+    container_name: shipforge-worker
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+psycopg2://shipforge:shipforge_password@postgres:5432/shipforge
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - build_workspaces:/build_workspaces
+    depends_on:
+      - postgres
+      - redis
+
 volumes:
   postgres_data:
+  build_workspaces:

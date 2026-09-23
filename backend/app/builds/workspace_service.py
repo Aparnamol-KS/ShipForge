@@ -6,10 +6,17 @@ from pathlib import Path
 
 
 def create_workspace() -> Path:
-    workspace = Path(tempfile.mkdtemp(prefix="shipforge-build-"))
+    workspace_root = Path("/build_workspaces")
+    workspace_root.mkdir(parents=True, exist_ok=True)
+
+    workspace = Path(
+        tempfile.mkdtemp(
+            prefix="shipforge-build-",
+            dir=workspace_root,
+        )
+    )
 
     return workspace
-
 
 def _remove_readonly(func, path, exc_info):
     os.chmod(path, stat.S_IWRITE)

@@ -2,6 +2,9 @@ import subprocess
 from pathlib import Path
 
 
+BUILD_WORKSPACE_VOLUME = "shipforge_build_workspaces"
+
+
 def run_command(
     command: str,
     workspace: Path | None = None,
@@ -14,12 +17,14 @@ def run_command(
     ]
 
     if workspace is not None:
+        workspace_name = workspace.name
+
         docker_command.extend(
             [
                 "-v",
-                f"{workspace.resolve()}:/workspace",
+                f"{BUILD_WORKSPACE_VOLUME}:/workspace",
                 "-w",
-                "/workspace",
+                f"/workspace/{workspace_name}",
             ]
         )
 

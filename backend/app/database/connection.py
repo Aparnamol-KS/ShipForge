@@ -1,14 +1,17 @@
+import os
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
-DATABASE_URL = (
-    "postgresql+psycopg2://shipforge:shipforge_password@localhost:5432/shipforge"
+load_dotenv()
+
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql+psycopg2://shipforge:shipforge_password@localhost:5432/shipforge",
 )
 
-engine = create_engine(
-    DATABASE_URL,
-    echo=True,
-)
+engine = create_engine(DATABASE_URL, echo=True)
 
 SessionLocal = sessionmaker(
     bind=engine,
@@ -23,7 +26,6 @@ class Base(DeclarativeBase):
 
 def get_db():
     db = SessionLocal()
-
     try:
         yield db
     finally:

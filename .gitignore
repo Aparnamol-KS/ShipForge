@@ -32,3 +32,4 @@ workspaces/*
 !workspaces/gitkeep
 shipforge-demo-repo/
 .env
+build_workspaces/
