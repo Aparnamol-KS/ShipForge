@@ -1,5 +1,6 @@
 from app.builds.docker_executor import run_command
 from pathlib import Path
+import subprocess
 
 
 
@@ -17,9 +18,28 @@ def test_run_command_failure():
     assert "build failed" in output
 
 def test_run_command_with_workspace(tmp_path: Path):
-    hello_file = tmp_path / "hello.py"
+    workspace_name = tmp_path.name
 
-    hello_file.write_text("print('Hello from ShipForge')")
+    create_file_command = [
+        "docker",
+        "run",
+        "--rm",
+        "-v",
+        "shipforge_build_workspaces:/workspace",
+        "python:3.12-slim",
+        "sh",
+        "-c",
+        (
+            f"mkdir -p /workspace/{workspace_name} && "
+            f"printf \"print('Hello from ShipForge')\\n\" "
+            f"> /workspace/{workspace_name}/hello.py"
+        ),
+    ]
+
+    subprocess.run(
+        create_file_command,
+        check=True,
+    )
 
     exit_code, output = run_command(
         "python hello.py",
