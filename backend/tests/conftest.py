@@ -8,11 +8,17 @@ from app.main import app
 
 @pytest.fixture
 def client(monkeypatch):
+    monkeypatch.setenv(
+        "GITHUB_WEBHOOK_SECRET",
+        "shipforge-webhook-secret",
+    )
+
     # Whenever the router tries to schedule a build during a test, do nothing
     monkeypatch.setattr(
         "app.builds.router.schedule_build",
         lambda *args, **kwargs: None,
     )
+
     # webhook test shouldn't actually clone a repository and start Docker
     monkeypatch.setattr(
         "app.webhooks.github.schedule_build",
