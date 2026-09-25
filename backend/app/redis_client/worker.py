@@ -40,8 +40,14 @@ def run_worker(
                 print(f"Project {project_id} has no repository URL.")
                 continue
 
-            if not project.build_command:
-                print(f"Project {project_id} has no build command.")
+            if not any(
+                [
+                    project.install_command,
+                    project.test_command,
+                    project.build_command,
+                ]
+            ):
+                print(f"Project {project_id} has no pipeline commands.")
                 continue
 
             print(f"Starting build #{build.build_number} for project {project.name}")
@@ -50,7 +56,9 @@ def run_worker(
                 project_id=project_id,
                 build_id=build_id,
                 repository_url=project.repository_url,
-                command=project.build_command,
+                install_command=project.install_command,
+                test_command=project.test_command,
+                build_command=project.build_command,
                 session_factory=session_factory,
                 event_publisher=publish_build_event,
             )

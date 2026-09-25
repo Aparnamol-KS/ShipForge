@@ -49,10 +49,16 @@ def create_build_endpoint(
             detail="Project repository URL is required",
         )
 
-    if not project.build_command:
+    if not any(
+        [
+            project.install_command,
+            project.test_command,
+            project.build_command,
+        ]
+    ):
         raise HTTPException(
             status_code=400,
-            detail="Project build command is required",
+            detail="Project has no pipeline commands configured",
         )
 
     build = create_build(

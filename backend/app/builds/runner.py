@@ -20,7 +20,9 @@ def run_build(
     project_id: int,
     build_id: int,
     repository_url: str,
-    command: str,
+    install_command: str | None,
+    test_command: str | None,
+    build_command: str | None,
     session_factory=SessionLocal,
     workspace_factory=create_workspace,
     repository_cloner=clone_repository,
@@ -54,48 +56,62 @@ def run_build(
             workspace,
         )
 
-        exit_code, output = command_runner(
-            command,
-            workspace=workspace,
-        )
+        commands = [
+            ("install", install_command),
+            ("test", test_command),
+            ("build", build_command),
+        ]
 
-        create_build_log(
+        for stage_name, command in commands:
+            if not command:
+                continue
+
+            exit_code, output = command_runner(
+                command,
+                workspace=workspace,
+            )
+
+            stage_output = f"[{stage_name}]\n{output}"
+            create_build_log(
+                db,
+                build_id,
+                stage_output,
+            )
+
+            if exit_code != 0:
+                transition_build(
+                    db,
+                    project_id,
+                    build_id,
+                    BuildStatus.FAILED,
+                )
+
+                if event_publisher:
+                    event_publisher(
+                        build_id,
+                        {
+                            "type": "status",
+                            "status": BuildStatus.FAILED.value,
+                        },
+                    )
+
+                return
+
+        transition_build(
             db,
+            project_id,
             build_id,
-            output,
+            BuildStatus.SUCCESS,
         )
 
-        if exit_code == 0:
-            transition_build(
-                db,
-                project_id,
+        if event_publisher:
+            event_publisher(
                 build_id,
-                BuildStatus.SUCCESS,
+                {
+                    "type": "status",
+                    "status": BuildStatus.SUCCESS.value,
+                },
             )
-            if event_publisher:
-                event_publisher(
-                    build_id,
-                    {
-                        "type": "status",
-                        "status": BuildStatus.SUCCESS.value,
-                    },
-                )
-        else:
-            transition_build(
-                db,
-                project_id,
-                build_id,
-                BuildStatus.FAILED,
-            )
-
-            if event_publisher:
-                event_publisher(
-                    build_id,
-                    {
-                        "type": "status",
-                        "status": BuildStatus.FAILED.value,
-                    },
-                )
 
     except Exception as error:
         error_output = f"Build failed:\n{error}"

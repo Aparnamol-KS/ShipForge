@@ -4,6 +4,7 @@ from app.database.models import BuildLog, BuildStatus
 from app.database.test_database import TestSessionLocal
 from fastapi.testclient import TestClient
 from sqlalchemy import select
+from app.database.models import Build
 
 
 def create_test_project(client: TestClient):
@@ -71,7 +72,7 @@ def test_create_build_without_build_command(client: TestClient):
     )
 
     assert response.status_code == 400
-    assert response.json()["detail"] == ("Project build command is required")
+    assert response.json()["detail"] == ("Project has no pipeline commands configured")
 
 def test_get_builds(client: TestClient):
     project_id = create_test_project(client)
@@ -354,7 +355,9 @@ def test_run_build_success(client, tmp_path):
         project_id,
         build_id,
         repository_url="https://example.com/test.git",
-        command="python hello.py",
+        install_command=None,
+        test_command=None,
+        build_command="python hello.py",
         session_factory=TestSessionLocal,
         repository_cloner=fake_clone,
         command_runner=fake_runner,
@@ -424,7 +427,9 @@ def test_run_build_failure(client, tmp_path):
         project_id,
         build_id,
         repository_url="https://example.com/test.git",
-        command="python hello.py",
+        install_command=None,
+        test_command=None,
+        build_command="python hello.py",
         session_factory=TestSessionLocal,
         repository_cloner=fake_clone,
         command_runner=fake_runner,
@@ -462,7 +467,9 @@ def test_run_build_repository_failure(client):
         project_id,
         build_id,
         repository_url="https://example.com/test.git",
-        command="python hello.py",
+        install_command=None,
+        test_command=None,
+        build_command="python hello.py",
         session_factory=TestSessionLocal,
         repository_cloner=fake_clone,
     )
@@ -524,7 +531,9 @@ def test_run_build_cleans_workspace_after_failure(client, tmp_path):
         project_id,
         build_id,
         repository_url="https://example.com/test.git",
-        command="python hello.py",
+        install_command=None,
+        test_command=None,
+        build_command="python hello.py",
         session_factory=TestSessionLocal,
         workspace_factory=fake_workspace_factory,
         repository_cloner=fake_clone,
@@ -563,7 +572,9 @@ def test_get_build_logs(client, tmp_path):
         project_id,
         build_id,
         repository_url="https://example.com/test.git",
-        command="python hello.py",
+        install_command=None,
+        test_command=None,
+        build_command="python hello.py",
         session_factory=TestSessionLocal,
         repository_cloner=fake_clone,
         command_runner=fake_runner,
@@ -578,3 +589,120 @@ def test_get_build_logs(client, tmp_path):
     assert len(logs) == 1
     assert logs[0]["build_id"] == build_id
     assert "Hello from ShipForge" in logs[0]["output"]
+
+
+
+def test_run_build_pipeline_order(client):
+    project_id = create_test_project(client)
+
+    response = client.post(f"/projects/{project_id}/builds/")
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    executed_commands = []
+
+    def fake_clone(repository_url, workspace):
+        pass
+
+    def fake_runner(command, workspace):
+        executed_commands.append(command)
+        return 0, f"{command} completed\n"
+
+    run_build(
+        project_id,
+        build_id,
+        repository_url="https://example.com/test.git",
+        install_command="pip install -r requirements.txt",
+        test_command="pytest",
+        build_command="python build.py",
+        session_factory=TestSessionLocal,
+        repository_cloner=fake_clone,
+        command_runner=fake_runner,
+    )
+
+    assert executed_commands == [
+        "pip install -r requirements.txt",
+        "pytest",
+        "python build.py",
+    ]
+
+def test_run_build_stops_after_failed_stage(client):
+    project_id = create_test_project(client)
+
+    response = client.post(f"/projects/{project_id}/builds/")
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    executed_commands = []
+
+    def fake_clone(repository_url, workspace):
+        pass
+
+    def fake_runner(command, workspace):
+        executed_commands.append(command)
+
+        if command == "pytest":
+            return 1, "Tests failed\n"
+
+        return 0, f"{command} completed\n"
+
+    run_build(
+        project_id,
+        build_id,
+        repository_url="https://example.com/test.git",
+        install_command="pip install -r requirements.txt",
+        test_command="pytest",
+        build_command="python build.py",
+        session_factory=TestSessionLocal,
+        repository_cloner=fake_clone,
+        command_runner=fake_runner,
+    )
+
+    assert executed_commands == [
+        "pip install -r requirements.txt",
+        "pytest",
+    ]
+
+
+def test_run_build_marks_failed_stage_as_failed(client):
+    project_id = create_test_project(client)
+
+    response = client.post(f"/projects/{project_id}/builds/")
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    def fake_clone(repository_url, workspace):
+        pass
+
+    def fake_runner(command, workspace):
+        if command == "pytest":
+            return 1, "Tests failed\n"
+
+        return 0, f"{command} completed\n"
+
+    run_build(
+        project_id,
+        build_id,
+        repository_url="https://example.com/test.git",
+        install_command="pip install -r requirements.txt",
+        test_command="pytest",
+        build_command="python build.py",
+        session_factory=TestSessionLocal,
+        repository_cloner=fake_clone,
+        command_runner=fake_runner,
+    )
+
+    db = TestSessionLocal()
+
+    try:
+        build = db.get(Build, build_id)
+        assert build is not None
+        assert build.status == BuildStatus.FAILED
+    finally:
+        db.close()

@@ -10,6 +10,8 @@ def create_project(db: Session, project_data: ProjectCreate) -> Project:
         description=project_data.description,
         repository_url=project_data.repository_url,
         build_command=project_data.build_command,
+        test_command=project_data.test_command,
+        install_command=project_data.install_command,
     )
 
     db.add(project)
@@ -33,6 +35,7 @@ def get_project(db: Session, project_id: int) -> Project | None:
     result = db.execute(statement)
 
     return result.scalar_one_or_none()
+
 
 def get_project_by_repository(
     db: Session,

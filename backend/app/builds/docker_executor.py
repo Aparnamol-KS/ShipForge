@@ -3,7 +3,7 @@ from pathlib import Path
 
 
 BUILD_WORKSPACE_VOLUME = "shipforge_build_workspaces"
-
+BUILD_NETWORK = "shipforge_default"
 
 def run_command(
     command: str,
@@ -14,6 +14,14 @@ def run_command(
         "docker",
         "run",
         "--rm",
+        "--network",
+        BUILD_NETWORK,
+        "-e",
+        "DATABASE_URL=postgresql+psycopg2://shipforge:shipforge_password@postgres:5432/shipforge",
+        "-e",
+        "TEST_DATABASE_URL=postgresql+psycopg2://shipforge:shipforge_password@postgres:5432/shipforge_test",
+        "-e",
+        "REDIS_URL=redis://redis:6379/0",
     ]
 
     if workspace is not None:
@@ -30,7 +38,7 @@ def run_command(
 
     docker_command.extend(
         [
-            "python:3.12-slim",
+            "shipforge-build:latest",
             "sh",
             "-c",
             command,
