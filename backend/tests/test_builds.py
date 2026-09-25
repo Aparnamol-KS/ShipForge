@@ -628,6 +628,134 @@ def test_run_build_pipeline_order(client):
         "python build.py",
     ]
 
+
+def test_run_build_updates_stage(client):
+    project_id = create_test_project(client)
+
+    response = client.post(f"/projects/{project_id}/builds/")
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    recorded_stages = []
+
+    def fake_clone(repository_url, workspace):
+        pass
+
+    def fake_runner(command, workspace):
+        db = TestSessionLocal()
+        try:
+            build = db.get(Build, build_id)
+            assert build is not None
+            recorded_stages.append(build.stage.value)
+        finally:
+            db.close()
+
+        return 0, f"{command} completed\n"
+
+    run_build(
+        project_id,
+        build_id,
+        repository_url="https://example.com/test.git",
+        install_command="pip install -r requirements.txt",
+        test_command="pytest",
+        build_command="python build.py",
+        session_factory=TestSessionLocal,
+        repository_cloner=fake_clone,
+        command_runner=fake_runner,
+    )
+
+    assert recorded_stages == [
+        "install",
+        "test",
+        "build",
+    ]
+
+
+
+def test_run_build_clears_stage_after_success(client):
+    project_id = create_test_project(client)
+
+    response = client.post(f"/projects/{project_id}/builds/")
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    def fake_clone(repository_url, workspace):
+        pass
+
+    def fake_runner(command, workspace):
+        return 0, f"{command} completed\n"
+
+    run_build(
+        project_id,
+        build_id,
+        repository_url="https://example.com/test.git",
+        install_command="pip install -r requirements.txt",
+        test_command="pytest",
+        build_command="python build.py",
+        session_factory=TestSessionLocal,
+        repository_cloner=fake_clone,
+        command_runner=fake_runner,
+    )
+
+    db = TestSessionLocal()
+
+    try:
+        build = db.get(Build, build_id)
+
+        assert build is not None
+        assert build.status == BuildStatus.SUCCESS
+        assert build.stage is None
+    finally:
+        db.close()
+
+
+def test_run_build_clears_stage_after_failure(client):
+    project_id = create_test_project(client)
+
+    response = client.post(f"/projects/{project_id}/builds/")
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    def fake_clone(repository_url, workspace):
+        pass
+
+    def fake_runner(command, workspace):
+        if command == "pytest":
+            return 1, "Tests failed\n"
+
+        return 0, f"{command} completed\n"
+
+    run_build(
+        project_id,
+        build_id,
+        repository_url="https://example.com/test.git",
+        install_command="pip install -r requirements.txt",
+        test_command="pytest",
+        build_command="python build.py",
+        session_factory=TestSessionLocal,
+        repository_cloner=fake_clone,
+        command_runner=fake_runner,
+    )
+
+    db = TestSessionLocal()
+
+    try:
+        build = db.get(Build, build_id)
+
+        assert build is not None
+        assert build.status == BuildStatus.FAILED
+        assert build.stage is None
+    finally:
+        db.close()
+
+
+        
 def test_run_build_stops_after_failed_stage(client):
     project_id = create_test_project(client)
 
@@ -706,3 +834,5 @@ def test_run_build_marks_failed_stage_as_failed(client):
         assert build.status == BuildStatus.FAILED
     finally:
         db.close()
+
+

@@ -1,7 +1,5 @@
 from pathlib import Path
 
-from sqlalchemy.orm import Session
-
 from app.builds.docker_executor import run_command
 from app.builds.log_service import create_build_log
 from app.builds.service import transition_build
@@ -10,10 +8,9 @@ from app.builds.workspace_service import (
     create_workspace,
 )
 from app.database.connection import SessionLocal
-from app.database.models import BuildStatus
+from app.database.models import Build, BuildStage, BuildStatus
 from app.repositories.service import clone_repository
-from app.builds.websocket import manager
-from app.redis_client.events import publish_build_event
+from sqlalchemy.orm import Session
 
 
 def run_build(
@@ -34,6 +31,10 @@ def run_build(
     workspace: Path | None = None
 
     try:
+        build = db.get(Build, build_id)
+
+        if build is None:
+            return
         transition_build(
             db,
             project_id,
@@ -66,6 +67,8 @@ def run_build(
             if not command:
                 continue
 
+            build.stage = BuildStage(stage_name)
+            db.commit()
             exit_code, output = command_runner(
                 command,
                 workspace=workspace,
@@ -79,6 +82,8 @@ def run_build(
             )
 
             if exit_code != 0:
+                build.stage = None
+                db.commit()
                 transition_build(
                     db,
                     project_id,
@@ -96,6 +101,8 @@ def run_build(
                     )
 
                 return
+        build.stage = None
+        db.commit()
 
         transition_build(
             db,
@@ -121,6 +128,8 @@ def run_build(
             build_id,
             error_output,
         )
+        build.stage = None
+        db.commit()
 
         transition_build(
             db,

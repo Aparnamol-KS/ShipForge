@@ -71,6 +71,10 @@ class BuildStatus(str, PyEnum):
     SUCCESS = "success"
     FAILED = "failed"
 
+class BuildStage(str, PyEnum):
+    INSTALL = "install"
+    TEST = "test"
+    BUILD = "build"
 
 class Build(Base):
     __tablename__ = "builds"
@@ -103,6 +107,11 @@ class Build(Base):
         nullable=False,
     )
 
+    stage: Mapped[BuildStage | None] = mapped_column(
+        SQLEnum(BuildStage),
+        nullable=True,
+    )
+    
     branch: Mapped[str | None] = mapped_column(
         String(255),
         nullable=True,
