@@ -14,6 +14,8 @@ def run_command(
         "docker",
         "run",
         "--rm",
+        "--volume",
+        "/var/run/docker.sock:/var/run/docker.sock",
         "--network",
         BUILD_NETWORK,
         "-e",
