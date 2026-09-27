@@ -7,10 +7,12 @@ Closing the connection when the component is removed
 import { useEffect, useRef } from "react";
 
 interface BuildEvent {
-    type: "status" | "log";
+    type: "status" | "log" | "stage";
     status?: string;
     output?: string;
+    stage?: string;
 }
+
 
 interface UseBuildWebSocketProps {
     projectId: number | null;

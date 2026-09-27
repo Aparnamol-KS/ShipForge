@@ -69,6 +69,14 @@ def run_build(
 
             build.stage = BuildStage(stage_name)
             db.commit()
+            if event_publisher is not None:
+                event_publisher(
+                    build_id,
+                    {
+                        "type": "stage",
+                        "stage": stage_name,
+                    },
+                )
             exit_code, output = command_runner(
                 command,
                 workspace=workspace,

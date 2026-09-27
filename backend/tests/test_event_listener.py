@@ -48,3 +48,42 @@ def test_forward_build_events():
         assert websocket.messages == [event]
 
     asyncio.run(run_test())
+
+
+
+def test_forward_stage_event():
+    build_id = 67891
+    websocket = FakeWebSocket()
+
+    async def run_test():
+        listener_task = asyncio.create_task(
+            forward_build_events(
+                build_id,
+                websocket,
+            )
+        )
+
+        await asyncio.sleep(0.2)
+
+        event = {
+            "type": "stage",
+            "stage": "test",
+        }
+
+        publish_build_event(
+            build_id,
+            event,
+        )
+
+        await asyncio.sleep(0.5)
+
+        listener_task.cancel()
+
+        try:
+            await listener_task
+        except asyncio.CancelledError:
+            pass
+
+        assert websocket.messages == [event]
+
+    asyncio.run(run_test())

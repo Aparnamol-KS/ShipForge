@@ -50,6 +50,8 @@ function ProjectDetailsPage() {
     const [buildLogs, setBuildLogs] = useState<BuildLog[]>([]);
     const [logsLoading, setLogsLoading] = useState(false);
 
+    const [currentStage, setCurrentStage] = useState<string | null>(null);
+
     useEffect(() => {
         const loadProject = async () => {
             if (!projectId) {
@@ -146,12 +148,16 @@ function ProjectDetailsPage() {
     };
 
     const handleBuildEvent = (event: {
-        type: "status" | "log";
+        type: "status" | "log" | "stage";
         status?: string;
         output?: string;
+        stage?: string;
     }) => {
         if (event.type === "status") {
             loadBuilds();
+        }
+        if (event.type === "stage") {
+            setCurrentStage(event.stage ?? null);
         }
     };
 
@@ -545,6 +551,17 @@ function ProjectDetailsPage() {
                                     Logs
                                 </h2>
                             </div>
+
+                            {currentStage !== null && (
+                                <div className="border-b border-zinc-800 px-5 py-4">
+                                    <p className="text-xs uppercase tracking-wider text-zinc-600">
+                                        Current stage
+                                    </p>
+                                    <p className="mt-1 font-mono text-sm text-indigo-400">
+                                        {currentStage}
+                                    </p>
+                                </div>
+                            )}
 
                             <div className="p-5">
                                 {logsLoading ? (

@@ -12,6 +12,7 @@ async def forward_build_events(
     websocket: WebSocket,
 ) -> None:
     while True:
+        # runs the blocking Redis operation in a separate thread so it doesn't block the async event loop
         event = await asyncio.to_thread(
             get_build_event,
             build_id,

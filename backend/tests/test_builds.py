@@ -673,6 +673,82 @@ def test_run_build_updates_stage(client):
     ]
 
 
+def test_run_build_publishes_stage_events(client):
+    project_id = create_test_project(client)
+
+    response = client.post(f"/projects/{project_id}/builds/")
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    events = []
+
+    def fake_clone(repository_url, workspace):
+        pass
+
+    def fake_runner(command, workspace):
+        return 0, f"{command} completed\n"
+
+    def fake_event_publisher(build_id, event):
+        events.append(
+            {
+                "build_id": build_id,
+                "event": event,
+            }
+        )
+
+    run_build(
+        project_id,
+        build_id,
+        repository_url="https://example.com/test.git",
+        install_command="pip install -r requirements.txt",
+        test_command="pytest",
+        build_command="python build.py",
+        session_factory=TestSessionLocal,
+        repository_cloner=fake_clone,
+        command_runner=fake_runner,
+        event_publisher=fake_event_publisher,
+    )
+
+    assert events == [
+        {
+            "build_id": build_id,
+            "event": {
+                "type": "status",
+                "status": "running",
+            },
+        },
+        {
+            "build_id": build_id,
+            "event": {
+                "type": "stage",
+                "stage": "install",
+            },
+        },
+        {
+            "build_id": build_id,
+            "event": {
+                "type": "stage",
+                "stage": "test",
+            },
+        },
+        {
+            "build_id": build_id,
+            "event": {
+                "type": "stage",
+                "stage": "build",
+            },
+        },
+        {
+            "build_id": build_id,
+            "event": {
+                "type": "status",
+                "status": "success",
+            },
+        },
+    ]
+
 
 def test_run_build_clears_stage_after_success(client):
     project_id = create_test_project(client)

@@ -47,3 +47,44 @@ def test_publish_build_event():
 
     finally:
         pubsub.close()
+
+
+def test_publish_stage_event():
+    build_id = 54321
+
+    channel = build_channel(build_id)
+
+    pubsub = redis_client.pubsub()
+    pubsub.subscribe(channel)
+
+    subscription_message = pubsub.get_message(
+        timeout=1,
+    )
+
+    assert subscription_message is not None
+    assert subscription_message["type"] == "subscribe"
+
+    event = {
+        "type": "stage",
+        "stage": "test",
+    }
+
+    publish_build_event(
+        build_id,
+        event,
+    )
+
+    message = pubsub.get_message(
+        timeout=1,
+    )
+
+    try:
+        assert message is not None
+        assert message["type"] == "message"
+        assert message["channel"] == channel
+
+        received_event = json.loads(message["data"])
+
+        assert received_event == event
+    finally:
+        pubsub.close()
