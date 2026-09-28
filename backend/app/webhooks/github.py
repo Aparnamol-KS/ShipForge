@@ -69,18 +69,24 @@ async def github_webhook(
             "repository_url": repository_url,
         }
 
+    if not any(
+        [
+            project.install_command,
+            project.test_command,
+            project.build_command,
+        ]
+    ):
+        return {
+            "message": "Project has no pipeline commands configured",
+            "project_id": project.id,
+        }
+
     build = create_build(
         db,
         project.id,
         branch=branch,
         commit_sha=commit_sha,
     )
-
-    if not project.build_command:
-        return {
-            "message": "Project build command is required",
-            "project_id": project.id,
-        }
 
     schedule_build(
         project_id=project.id,

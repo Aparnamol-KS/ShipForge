@@ -5,6 +5,8 @@ export interface Project {
     name: string;
     description: string | null;
     repository_url: string | null;
+    install_command: string | null;
+    test_command: string | null;
     build_command: string | null;
     created_at: string;
     updated_at: string;
@@ -14,6 +16,8 @@ export interface ProjectCreate {
     name: string;
     description?: string;
     repository_url?: string;
+    install_command?: string;
+    test_command?: string;
     build_command?: string;
 }
 
@@ -21,6 +25,8 @@ export interface ProjectUpdate {
     name?: string;
     description?: string;
     repository_url?: string;
+    install_command?: string;
+    test_command?: string;
     build_command?: string;
 }
 

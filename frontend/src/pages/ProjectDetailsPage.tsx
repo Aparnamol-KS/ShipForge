@@ -131,6 +131,7 @@ function ProjectDetailsPage() {
         }
 
         setSelectedBuildId(buildId);
+        setCurrentStage(null);
         setLogsLoading(true);
 
         try {
@@ -463,12 +464,51 @@ function ProjectDetailsPage() {
                                 )}
                             </div>
 
+                            {/* Install command */}
+                            <div>
+                                <p className="text-xs uppercase tracking-wider text-zinc-600">
+                                    Install command
+                                </p>
+                                {project.install_command ? (
+                                    <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3">
+                                        <code className="font-mono text-sm text-zinc-300">
+                                            {project.install_command}
+                                        </code>
+                                    </div>
+                                ) : (
+                                    <div className="mt-2 rounded-lg border border-dashed border-zinc-800 bg-zinc-950/50 px-4 py-4">
+                                        <p className="text-sm text-zinc-500">
+                                            No install command configured.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Test command */}
+                            <div>
+                                <p className="text-xs uppercase tracking-wider text-zinc-600">
+                                    Test command
+                                </p>
+                                {project.test_command ? (
+                                    <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3">
+                                        <code className="font-mono text-sm text-zinc-300">
+                                            {project.test_command}
+                                        </code>
+                                    </div>
+                                ) : (
+                                    <div className="mt-2 rounded-lg border border-dashed border-zinc-800 bg-zinc-950/50 px-4 py-4">
+                                        <p className="text-sm text-zinc-500">
+                                            No test command configured.
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
                             {/* Build command */}
                             <div>
                                 <p className="text-xs uppercase tracking-wider text-zinc-600">
                                     Build command
                                 </p>
-
                                 {project.build_command ? (
                                     <div className="mt-2 rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-3">
                                         <code className="font-mono text-sm text-zinc-300">

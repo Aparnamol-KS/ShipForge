@@ -39,6 +39,38 @@ function formatDate(date: string): string {
     return new Date(date).toLocaleString();
 }
 
+
+function formatDuration(
+    startedAt: string | null,
+    finishedAt: string | null,
+): string {
+    if (!startedAt) {
+        return "—";
+    }
+
+    const start = new Date(startedAt).getTime();
+
+    if (!finishedAt) {
+        return "Running...";
+    }
+
+    const finish = new Date(finishedAt).getTime();
+    const durationSeconds = Math.max(
+        0,
+        Math.floor((finish - start) / 1000),
+    );
+
+    if (durationSeconds < 60) {
+        return `${durationSeconds}s`;
+    }
+
+    const minutes = Math.floor(durationSeconds / 60);
+    const seconds = durationSeconds % 60;
+
+    return `${minutes}m ${seconds}s`;
+}
+
+
 function BuildList({
     builds,
     onViewLogs,
@@ -122,9 +154,14 @@ function BuildList({
                                 </span>
                             </div>
 
-                            <span className="text-xs text-zinc-600">
-                                {formatDate(build.created_at)}
-                            </span>
+                            <div className="text-right">
+                                <span className="block text-xs text-zinc-600">
+                                    {formatDate(build.created_at)}
+                                </span>
+                                <span className="mt-1 block font-mono text-[11px] text-zinc-700">
+                                    {formatDuration(build.started_at, build.finished_at)}
+                                </span>
+                            </div>
                         </div>
                         <button
                             type="button"

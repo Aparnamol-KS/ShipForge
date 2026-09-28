@@ -115,3 +115,54 @@ def test_github_webhook_rejects_invalid_signature(client):
 
     assert response.status_code == 401
     assert response.json()["detail"] == "Invalid GitHub webhook signature"
+
+
+def test_github_webhook_allows_install_and_test_without_build_command(client):
+    repository_url = "https://github.com/example/webhook-pipeline"
+
+    project_response = client.post(
+        "/projects/",
+        json={
+            "name": "Webhook Pipeline Project",
+            "repository_url": repository_url,
+            "install_command": "cd backend && uv sync --dev",
+            "test_command": "cd backend && uv run pytest -q",
+        },
+    )
+
+    assert project_response.status_code == 201
+
+    payload = {
+        "ref": "refs/heads/main",
+        "after": "def456",
+        "repository": {
+            "clone_url": repository_url,
+        },
+    }
+
+    raw_payload = json.dumps(payload).encode()
+    secret = "shipforge-webhook-secret"
+
+    digest = hmac.new(
+        secret.encode(),
+        raw_payload,
+        hashlib.sha256,
+    ).hexdigest()
+
+    signature = f"sha256={digest}"
+
+    response = client.post(
+        "/webhooks/github",
+        content=raw_payload,
+        headers={
+            "Content-Type": "application/json",
+            "X-Hub-Signature-256": signature,
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["message"] == "Build queued"
+    assert data["status"] == "queued"
