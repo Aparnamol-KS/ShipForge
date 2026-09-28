@@ -129,7 +129,7 @@ function BuildList({
                             <div className="text-sm text-gray-400">
                                 {build.branch && build.commit_sha ? (
                                     <>
-                                        {build.branch.replace("refs/heads/", "")} ·{" "}
+                                        {build.branch} ·{" "}
                                         {build.commit_sha.slice(0, 7)}
                                     </>
                                 ) : (

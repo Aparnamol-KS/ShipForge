@@ -19,6 +19,7 @@ async def github_webhook(
     request: Request,
     db: Session = Depends(get_db),
 ):
+    
     payload = await request.body()
 
     signature = request.headers.get(
@@ -44,13 +45,20 @@ async def github_webhook(
             status_code=401,
             detail="Invalid GitHub webhook signature",
         )
+    event_type = request.headers.get("X-GitHub-Event")
 
+    if event_type != "push":
+        return {
+            "message": "Webhook event ignored",
+            "event": event_type,
+        }
     data = await request.json()
 
     repository = data.get("repository", {})
 
     repository_url = repository.get("clone_url")
-    branch = data.get("ref")
+    ref = data.get("ref")
+    branch = ref.removeprefix("refs/heads/") if ref else None
     commit_sha = data.get("after")
 
     if not repository_url:

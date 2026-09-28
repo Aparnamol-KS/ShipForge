@@ -50,6 +50,7 @@ def test_github_webhook_creates_build(client):
         headers={
             "Content-Type": "application/json",
             "X-Hub-Signature-256": signature,
+            "X-GitHub-Event": "push",
         },
     )
 
@@ -63,7 +64,7 @@ def test_github_webhook_creates_build(client):
     assert data["build_number"] == 1
     assert data["status"] == "queued"
     assert data["repository_url"] == repository_url
-    assert data["branch"] == "refs/heads/main"
+    assert data["branch"] == "main"
     assert data["commit_sha"] == "abc123"
 
     db = TestSessionLocal()
@@ -73,7 +74,7 @@ def test_github_webhook_creates_build(client):
         build = db.query(Build).filter(Build.id == data["build_id"]).first()
 
         assert build is not None
-        assert build.branch == "refs/heads/main"
+        assert build.branch == "main"
         assert build.commit_sha == "abc123"
 
     finally:
@@ -157,6 +158,7 @@ def test_github_webhook_allows_install_and_test_without_build_command(client):
         headers={
             "Content-Type": "application/json",
             "X-Hub-Signature-256": signature,
+            "X-GitHub-Event": "push",
         },
     )
 
@@ -166,3 +168,40 @@ def test_github_webhook_allows_install_and_test_without_build_command(client):
 
     assert data["message"] == "Build queued"
     assert data["status"] == "queued"
+
+def test_github_webhook_ignores_non_push_event(client):
+    payload = {
+        "ref": "refs/heads/main",
+        "after": "abc123",
+        "repository": {
+            "clone_url": "https://github.com/example/test",
+        },
+    }
+
+    raw_payload = json.dumps(payload).encode()
+    secret = "shipforge-webhook-secret"
+
+    digest = hmac.new(
+        secret.encode(),
+        raw_payload,
+        hashlib.sha256,
+    ).hexdigest()
+
+    signature = f"sha256={digest}"
+
+    response = client.post(
+        "/webhooks/github",
+        content=raw_payload,
+        headers={
+            "Content-Type": "application/json",
+            "X-Hub-Signature-256": signature,
+            "X-GitHub-Event": "pull_request",
+        },
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["message"] == "Webhook event ignored"
+    assert data["event"] == "pull_request"
