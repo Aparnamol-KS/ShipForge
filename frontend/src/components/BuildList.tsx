@@ -1,9 +1,12 @@
+
 import type { Build } from "../api/projects";
 
 interface BuildListProps {
     builds: Build[];
     onViewLogs: (buildId: number) => void;
+    onRetryBuild: (buildId: number) => void;
 }
+
 
 const statusStyles: Record<
     Build["status"],
@@ -74,7 +77,9 @@ function formatDuration(
 function BuildList({
     builds,
     onViewLogs,
+    onRetryBuild,
 }: BuildListProps) {
+
     if (builds.length === 0) {
         return (
             <div className="rounded-xl border border-dashed border-zinc-800 bg-zinc-900/20 px-6 py-10 text-center">
@@ -104,8 +109,8 @@ function BuildList({
                     <div
                         key={build.id}
                         className={`flex flex-col gap-4 px-5 py-4 transition hover:bg-zinc-900/70 sm:flex-row sm:items-center sm:justify-between ${index !== builds.length - 1
-                                ? "border-b border-zinc-800/70"
-                                : ""
+                            ? "border-b border-zinc-800/70"
+                            : ""
                             }`}
                     >
                         {/* Build identity */}
@@ -124,7 +129,7 @@ function BuildList({
                                 <p className="mt-1 font-mono text-[11px] text-zinc-600">
                                     project_{build.project_id}
                                 </p>
-                                
+
                             </div>
                             <div className="text-sm text-gray-400">
                                 {build.branch && build.commit_sha ? (
@@ -168,13 +173,25 @@ function BuildList({
                                 </span>
                             </div>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => onViewLogs(build.id)}
-                            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white"
-                        >
-                            View logs
-                        </button>
+                        <div className="flex items-center gap-2">
+                            <button
+                                type="button"
+                                onClick={() => onViewLogs(build.id)}
+                                className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-zinc-300 transition hover:border-zinc-500 hover:text-white"
+                            >
+                                View logs
+                            </button>
+
+                            {build.status === "failed" && (
+                                <button
+                                    type="button"
+                                    onClick={() => onRetryBuild(build.id)}
+                                    className="rounded-lg border border-amber-800 px-3 py-1.5 text-sm text-amber-400 transition hover:border-amber-600 hover:text-amber-300"
+                                >
+                                    Retry
+                                </button>
+                            )}
+                        </div>
                     </div>
                 );
             })}

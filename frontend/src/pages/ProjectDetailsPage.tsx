@@ -15,7 +15,8 @@ import {
     type Build,
     type Project,
     getBuildLogs,
-    type BuildLog
+    type BuildLog,
+    retryBuild
 } from "../api/projects";
 
 import BuildList from "../components/BuildList";
@@ -91,7 +92,7 @@ function ProjectDetailsPage() {
         }
     };
 
-    
+
 
     useEffect(() => {
         loadBuilds();
@@ -122,6 +123,21 @@ function ProjectDetailsPage() {
             setBuildError("Failed to create build");
         } finally {
             setCreatingBuild(false);
+        }
+    };
+
+    const handleRetryBuild = async (buildId: number) => {
+        if (!projectId) {
+            return;
+        }
+
+        setBuildError(null);
+
+        try {
+            await retryBuild(Number(projectId), buildId);
+            await loadBuilds();
+        } catch {
+            setBuildError("Failed to retry build");
         }
     };
 
@@ -574,6 +590,7 @@ function ProjectDetailsPage() {
                         <BuildList
                             builds={builds}
                             onViewLogs={handleViewLogs}
+                            onRetryBuild={handleRetryBuild}
                         />
 
 
@@ -613,7 +630,7 @@ function ProjectDetailsPage() {
                                     </p>
                                 </div>
                             )}
-                            
+
 
                             <div className="p-5">
                                 {logsLoading ? (

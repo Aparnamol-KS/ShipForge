@@ -79,6 +79,30 @@ def get_build(
 
     return result.scalar_one_or_none()
 
+def retry_build(
+    db: Session,
+    project_id: int,
+    build_id: int,
+) -> Build | None:
+    build = get_build(
+        db,
+        project_id,
+        build_id,
+    )
+
+    if build is None:
+        return None
+
+    if build.status != BuildStatus.FAILED:
+        raise InvalidBuildTransitionError("Only failed builds can be retried")
+
+    return create_build(
+        db,
+        project_id,
+        branch=build.branch,
+        commit_sha=build.commit_sha,
+    )
+
 
 def transition_build(
     db: Session,

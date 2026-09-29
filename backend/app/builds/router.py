@@ -1,21 +1,20 @@
+from app.builds.event_listener import forward_build_events
 from app.builds.exceptions import InvalidBuildTransitionError
-from app.builds.schemas import BuildResponse, BuildStatusUpdate, BuildLogResponse
+from app.builds.log_service import get_build_logs
+from app.builds.schemas import BuildLogResponse, BuildResponse, BuildStatusUpdate
 from app.builds.service import (
     create_build,
     get_build,
     get_builds,
+    retry_build,
     transition_build,
 )
-from app.database.connection import get_db
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
 from app.builds.tasks import schedule_build
-from app.builds.log_service import get_build_logs
-from app.projects.service import get_project
-from fastapi import WebSocket
 from app.builds.websocket import manager
-from app.builds.event_listener import forward_build_events
-import asyncio
+from app.database.connection import get_db
+from app.projects.service import get_project
+from fastapi import APIRouter, Depends, HTTPException, WebSocket
+from sqlalchemy.orm import Session
 
 router = APIRouter(
     prefix="/projects/{project_id}/builds",
@@ -80,7 +79,6 @@ def create_build_endpoint(
     return build
 
 
-
 @router.get(
     "/",
     response_model=list[BuildResponse],
@@ -90,6 +88,42 @@ def get_builds_endpoint(
     db: Session = Depends(get_db),
 ):
     return get_builds(db, project_id)
+
+
+@router.post(
+    "/{build_id}/retry",
+    response_model=BuildResponse,
+    status_code=201,
+)
+def retry_build_endpoint(
+    project_id: int,
+    build_id: int,
+    db: Session = Depends(get_db),
+):
+    try:
+        build = retry_build(
+            db,
+            project_id,
+            build_id,
+        )
+    except InvalidBuildTransitionError as error:
+        raise HTTPException(
+            status_code=400,
+            detail=str(error),
+        )
+
+    if build is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Build not found",
+        )
+
+    schedule_build(
+        project_id=project_id,
+        build_id=build.id,
+    )
+
+    return build
 
 
 @router.get(
@@ -169,6 +203,7 @@ def get_logs(
         db,
         build_id,
     )
+
 
 @router.websocket("/{build_id}/ws")
 async def build_websocket(

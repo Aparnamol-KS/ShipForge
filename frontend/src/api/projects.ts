@@ -121,3 +121,15 @@ export const getBuildLogs = async (
 
     return response.data;
 };
+
+
+export async function retryBuild(
+    projectId: number,
+    buildId: number,
+): Promise<Build> {
+    const response = await apiClient.post<Build>(
+        `/projects/${projectId}/builds/${buildId}/retry`,
+    );
+
+    return response.data;
+}

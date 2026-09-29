@@ -915,3 +915,154 @@ def test_run_build_marks_failed_stage_as_failed(client):
         db.close()
 
 
+def test_retry_failed_build(client, monkeypatch):
+    project_id = create_test_project(client)
+
+    first_response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+
+    assert first_response.status_code == 201
+
+    first_build_id = first_response.json()["id"]
+
+    client.patch(
+        f"/projects/{project_id}/builds/{first_build_id}",
+        json={"status": "running"},
+    )
+
+    failed_response = client.patch(
+        f"/projects/{project_id}/builds/{first_build_id}",
+        json={"status": "failed"},
+    )
+
+    assert failed_response.status_code == 200
+
+    scheduled_builds = []
+
+    def fake_schedule_build(project_id, build_id):
+        scheduled_builds.append(
+            {
+                "project_id": project_id,
+                "build_id": build_id,
+            }
+        )
+
+    monkeypatch.setattr(
+        "app.builds.router.schedule_build",
+        fake_schedule_build,
+    )
+
+    response = client.post(
+        f"/projects/{project_id}/builds/{first_build_id}/retry",
+    )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    assert data["project_id"] == project_id
+    assert data["build_number"] == 2
+    assert data["status"] == "queued"
+
+    assert scheduled_builds == [
+        {
+            "project_id": project_id,
+            "build_id": data["id"],
+        }
+    ]
+
+    original_response = client.get(
+        f"/projects/{project_id}/builds/{first_build_id}",
+    )
+
+    assert original_response.json()["status"] == "failed"
+
+
+def test_retry_successful_build_is_rejected(client):
+    project_id = create_test_project(client)
+
+    response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={"status": "running"},
+    )
+
+    client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={"status": "success"},
+    )
+
+    response = client.post(
+        f"/projects/{project_id}/builds/{build_id}/retry",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Only failed builds can be retried"
+
+def test_retry_nonexistent_build(client):
+    project_id = create_test_project(client)
+
+    response = client.post(
+        f"/projects/{project_id}/builds/9999/retry",
+    )
+
+    assert response.status_code == 404
+    assert response.json()["detail"] == "Build not found"
+
+
+def test_retry_preserves_branch_and_commit(client, monkeypatch):
+    project_id = create_test_project(client)
+
+    response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    # Set the source information directly through the database.
+    db = TestSessionLocal()
+    try:
+        build = db.get(Build, build_id)
+        assert build is not None
+
+        build.branch = "main"
+        build.commit_sha = "abc123456789"
+        db.commit()
+    finally:
+        db.close()
+
+    client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={"status": "running"},
+    )
+
+    client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={"status": "failed"},
+    )
+
+    monkeypatch.setattr(
+        "app.builds.router.schedule_build",
+        lambda project_id, build_id: None,
+    )
+
+    response = client.post(
+        f"/projects/{project_id}/builds/{build_id}/retry",
+    )
+
+    assert response.status_code == 201
+
+    data = response.json()
+
+    assert data["branch"] == "main"
+    assert data["commit_sha"] == "abc123456789"
