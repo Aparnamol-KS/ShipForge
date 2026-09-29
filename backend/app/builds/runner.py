@@ -90,8 +90,10 @@ def run_build(
             )
 
             if exit_code != 0:
+                build.failed_stage = BuildStage(stage_name)
                 build.stage = None
                 db.commit()
+
                 transition_build(
                     db,
                     project_id,

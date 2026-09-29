@@ -603,6 +603,18 @@ function ProjectDetailsPage() {
                                 </div>
                             )}
 
+                            {builds.find((build) => build.id === selectedBuildId)?.failed_stage && (
+                                <div className="border-b border-zinc-800 px-5 py-4">
+                                    <p className="text-xs uppercase tracking-wider text-zinc-600">
+                                        Failed stage
+                                    </p>
+                                    <p className="mt-1 font-mono text-sm text-red-400">
+                                        {builds.find((build) => build.id === selectedBuildId)?.failed_stage}
+                                    </p>
+                                </div>
+                            )}
+                            
+
                             <div className="p-5">
                                 {logsLoading ? (
                                     <p className="text-sm text-zinc-500">

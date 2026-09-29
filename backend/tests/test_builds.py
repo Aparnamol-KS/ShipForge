@@ -1,6 +1,6 @@
 from app.builds.log_service import create_build_log
 from app.builds.runner import run_build
-from app.database.models import BuildLog, BuildStatus
+from app.database.models import BuildLog, BuildStage, BuildStatus
 from app.database.test_database import TestSessionLocal
 from fastapi.testclient import TestClient
 from sqlalchemy import select
@@ -438,6 +438,7 @@ def test_run_build_failure(client, tmp_path):
     assert response.status_code == 200
     build = response.json()
     assert build["status"] == "failed"
+    assert build["failed_stage"] == "build"
     assert build["started_at"] is not None
     assert build["finished_at"] is not None
     db = TestSessionLocal()
@@ -826,6 +827,7 @@ def test_run_build_clears_stage_after_failure(client):
 
         assert build is not None
         assert build.status == BuildStatus.FAILED
+        assert build.failed_stage == BuildStage.TEST
         assert build.stage is None
     finally:
         db.close()
@@ -908,6 +910,7 @@ def test_run_build_marks_failed_stage_as_failed(client):
         build = db.get(Build, build_id)
         assert build is not None
         assert build.status == BuildStatus.FAILED
+        assert build.failed_stage == BuildStage.TEST
     finally:
         db.close()
 

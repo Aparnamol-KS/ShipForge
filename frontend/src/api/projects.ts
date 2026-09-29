@@ -37,6 +37,8 @@ export interface Build {
     branch: string | null;
     commit_sha: string | null;
     status: "queued" | "running" | "success" | "failed";
+    stage: "install" | "test" | "build" | null;
+    failed_stage: "install" | "test" | "build" | null;
     created_at: string;
     started_at: string | null;
     finished_at: string | null;

@@ -152,6 +152,11 @@ function BuildList({
                                 >
                                     {build.status}
                                 </span>
+                                {build.status === "failed" && build.failed_stage && (
+                                    <span className="text-xs text-red-400">
+                                        Failed at: {build.failed_stage}
+                                    </span>
+                                )}
                             </div>
 
                             <div className="text-right">

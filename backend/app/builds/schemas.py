@@ -2,12 +2,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict
 
-from app.database.models import BuildStatus
+from app.database.models import BuildStatus,BuildStage
 
 
 class BuildCreate(BaseModel):
     pass
-
 
 class BuildResponse(BaseModel):
     id: int
@@ -16,6 +15,8 @@ class BuildResponse(BaseModel):
     branch: str | None
     commit_sha: str | None
     status: BuildStatus
+    stage: BuildStage | None
+    failed_stage: BuildStage | None
     created_at: datetime
     started_at: datetime | None
     finished_at: datetime | None

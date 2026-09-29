@@ -111,6 +111,11 @@ class Build(Base):
         SQLEnum(BuildStage),
         nullable=True,
     )
+
+    failed_stage: Mapped[BuildStage | None] = mapped_column(
+        SQLEnum(BuildStage),
+        nullable=True,
+    )
     
     branch: Mapped[str | None] = mapped_column(
         String(255),
