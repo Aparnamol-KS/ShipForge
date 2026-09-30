@@ -70,6 +70,7 @@ class BuildStatus(str, PyEnum):
     RUNNING = "running"
     SUCCESS = "success"
     FAILED = "failed"
+    CANCELLED = "cancelled"
 
 class BuildStage(str, PyEnum):
     INSTALL = "install"

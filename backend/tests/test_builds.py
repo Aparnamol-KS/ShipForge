@@ -1,10 +1,9 @@
 from app.builds.log_service import create_build_log
 from app.builds.runner import run_build
-from app.database.models import BuildLog, BuildStage, BuildStatus
+from app.database.models import Build, BuildLog, BuildStage, BuildStatus
 from app.database.test_database import TestSessionLocal
 from fastapi.testclient import TestClient
 from sqlalchemy import select
-from app.database.models import Build
 
 
 def create_test_project(client: TestClient):
@@ -18,6 +17,7 @@ def create_test_project(client: TestClient):
     )
 
     return response.json()["id"]
+
 
 def test_create_build(client: TestClient):
     project_id = create_test_project(client)
@@ -73,6 +73,7 @@ def test_create_build_without_build_command(client: TestClient):
 
     assert response.status_code == 400
     assert response.json()["detail"] == ("Project has no pipeline commands configured")
+
 
 def test_get_builds(client: TestClient):
     project_id = create_test_project(client)
@@ -342,14 +343,15 @@ def test_run_build_success(client, tmp_path):
     hello_file.write_text("print('Hello from ShipForge')")
 
     def fake_clone(repository_url, workspace):
-        (workspace / "hello.py").write_text(
-            "print('Hello from ShipForge')"
-        )
+        (workspace / "hello.py").write_text("print('Hello from ShipForge')")
 
-
-    def fake_runner(command, workspace):
+    def fake_runner(
+        command,
+        workspace,
+        build_id=None,
+        is_cancelled=None,
+    ):
         return 0, "Hello from ShipForge\n"
-
 
     run_build(
         project_id,
@@ -415,13 +417,17 @@ def test_run_build_failure(client, tmp_path):
     response = client.post(f"/projects/{project_id}/builds/")
     assert response.status_code == 201
     build_id = response.json()["id"]
+
     def fake_clone(repository_url, workspace):
         pass
 
-
-    def fake_runner(command, workspace):
+    def fake_runner(
+        command,
+        workspace,
+        build_id=None,
+        is_cancelled=None,
+    ):
         return 1, "build failed\n"
-
 
     run_build(
         project_id,
@@ -448,6 +454,73 @@ def test_run_build_failure(client, tmp_path):
         assert "build failed" in log.output
     finally:
         db.close()
+
+
+def test_run_build_stops_after_cancellation(client, tmp_path):
+    project_id = create_test_project(client)
+
+    response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    executed_commands = []
+
+    def fake_clone(repository_url, workspace):
+        pass
+
+    def fake_runner(
+        command,
+        workspace,
+        build_id=None,
+        is_cancelled=None,
+    ):
+        executed_commands.append(command)
+
+        # Simulate the build being cancelled while the first
+        # stage is completing.
+        db = TestSessionLocal()
+        try:
+            build = db.get(Build, build_id)
+            assert build is not None
+            build.status = BuildStatus.CANCELLED
+            db.commit()
+        finally:
+            db.close()
+
+        assert is_cancelled is not None
+        assert is_cancelled() is True
+
+        return 0, "stage completed\n"
+
+    run_build(
+        project_id,
+        build_id,
+        repository_url="https://example.com/test.git",
+        install_command="echo install",
+        test_command="echo test",
+        build_command="echo build",
+        session_factory=TestSessionLocal,
+        repository_cloner=fake_clone,
+        command_runner=fake_runner,
+    )
+
+    response = client.get(
+        f"/projects/{project_id}/builds/{build_id}",
+    )
+
+    assert response.status_code == 200
+
+    build = response.json()
+
+    assert build["status"] == "cancelled"
+    assert build["finished_at"] is not None
+
+    assert executed_commands == [
+        "echo install",
+    ]
 
 
 def test_run_build_repository_failure(client):
@@ -545,7 +618,6 @@ def test_run_build_cleans_workspace_after_failure(client, tmp_path):
     assert workspace.exists() is False
 
 
-
 def test_get_build_logs(client, tmp_path):
     project_id = create_test_project(client)
 
@@ -560,14 +632,15 @@ def test_get_build_logs(client, tmp_path):
     hello_file.write_text("print('Hello from ShipForge')")
 
     def fake_clone(repository_url, workspace):
-        (workspace / "hello.py").write_text(
-            "print('Hello from ShipForge')"
-        )
+        (workspace / "hello.py").write_text("print('Hello from ShipForge')")
 
-
-    def fake_runner(command, workspace):
+    def fake_runner(
+        command,
+        workspace,
+        build_id=None,
+        is_cancelled=None,
+    ):
         return 0, "Hello from ShipForge\n"
-
 
     run_build(
         project_id,
@@ -592,7 +665,6 @@ def test_get_build_logs(client, tmp_path):
     assert "Hello from ShipForge" in logs[0]["output"]
 
 
-
 def test_run_build_pipeline_order(client):
     project_id = create_test_project(client)
 
@@ -607,7 +679,12 @@ def test_run_build_pipeline_order(client):
     def fake_clone(repository_url, workspace):
         pass
 
-    def fake_runner(command, workspace):
+    def fake_runner(
+        command,
+        workspace,
+        build_id=None,
+        is_cancelled=None,
+    ):
         executed_commands.append(command)
         return 0, f"{command} completed\n"
 
@@ -644,7 +721,12 @@ def test_run_build_updates_stage(client):
     def fake_clone(repository_url, workspace):
         pass
 
-    def fake_runner(command, workspace):
+    def fake_runner(
+        command,
+        workspace,
+        build_id=None,
+        is_cancelled=None,
+    ):
         db = TestSessionLocal()
         try:
             build = db.get(Build, build_id)
@@ -688,7 +770,12 @@ def test_run_build_publishes_stage_events(client):
     def fake_clone(repository_url, workspace):
         pass
 
-    def fake_runner(command, workspace):
+    def fake_runner(
+        command,
+        workspace,
+        build_id=None,
+        is_cancelled=None,
+    ):
         return 0, f"{command} completed\n"
 
     def fake_event_publisher(build_id, event):
@@ -763,7 +850,12 @@ def test_run_build_clears_stage_after_success(client):
     def fake_clone(repository_url, workspace):
         pass
 
-    def fake_runner(command, workspace):
+    def fake_runner(
+        command,
+        workspace,
+        build_id=None,
+        is_cancelled=None,
+    ):
         return 0, f"{command} completed\n"
 
     run_build(
@@ -802,7 +894,12 @@ def test_run_build_clears_stage_after_failure(client):
     def fake_clone(repository_url, workspace):
         pass
 
-    def fake_runner(command, workspace):
+    def fake_runner(
+        command,
+        workspace,
+        build_id=None,
+        is_cancelled=None,
+    ):
         if command == "pytest":
             return 1, "Tests failed\n"
 
@@ -833,7 +930,6 @@ def test_run_build_clears_stage_after_failure(client):
         db.close()
 
 
-        
 def test_run_build_stops_after_failed_stage(client):
     project_id = create_test_project(client)
 
@@ -848,7 +944,12 @@ def test_run_build_stops_after_failed_stage(client):
     def fake_clone(repository_url, workspace):
         pass
 
-    def fake_runner(command, workspace):
+    def fake_runner(
+        command,
+        workspace,
+        build_id=None,
+        is_cancelled=None,
+    ):
         executed_commands.append(command)
 
         if command == "pytest":
@@ -886,7 +987,12 @@ def test_run_build_marks_failed_stage_as_failed(client):
     def fake_clone(repository_url, workspace):
         pass
 
-    def fake_runner(command, workspace):
+    def fake_runner(
+        command,
+        workspace,
+        build_id=None,
+        is_cancelled=None,
+    ):
         if command == "pytest":
             return 1, "Tests failed\n"
 
@@ -1007,6 +1113,7 @@ def test_retry_successful_build_is_rejected(client):
     assert response.status_code == 400
     assert response.json()["detail"] == "Only failed builds can be retried"
 
+
 def test_retry_nonexistent_build(client):
     project_id = create_test_project(client)
 
@@ -1066,3 +1173,85 @@ def test_retry_preserves_branch_and_commit(client, monkeypatch):
 
     assert data["branch"] == "main"
     assert data["commit_sha"] == "abc123456789"
+
+
+def test_cancel_queued_build(client):
+    project_id = create_test_project(client)
+
+    response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    response = client.post(
+        f"/projects/{project_id}/builds/{build_id}/cancel",
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == build_id
+    assert data["status"] == "cancelled"
+    assert data["finished_at"] is not None
+
+
+def test_cancel_running_build(client):
+    project_id = create_test_project(client)
+
+    response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    response = client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={"status": "running"},
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        f"/projects/{project_id}/builds/{build_id}/cancel",
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["status"] == "cancelled"
+    assert data["finished_at"] is not None
+
+
+def test_cancel_successful_build_is_rejected(client):
+    project_id = create_test_project(client)
+
+    response = client.post(
+        f"/projects/{project_id}/builds/",
+    )
+    assert response.status_code == 201
+
+    build_id = response.json()["id"]
+
+    client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={"status": "running"},
+    )
+
+    response = client.patch(
+        f"/projects/{project_id}/builds/{build_id}",
+        json={"status": "success"},
+    )
+    assert response.status_code == 200
+
+    response = client.post(
+        f"/projects/{project_id}/builds/{build_id}/cancel",
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == (
+        "Only queued or running builds can be cancelled"
+    )

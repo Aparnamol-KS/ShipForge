@@ -16,7 +16,8 @@ import {
     type Project,
     getBuildLogs,
     type BuildLog,
-    retryBuild
+    retryBuild,
+    cancelBuild
 } from "../api/projects";
 
 import BuildList from "../components/BuildList";
@@ -138,6 +139,19 @@ function ProjectDetailsPage() {
             await loadBuilds();
         } catch {
             setBuildError("Failed to retry build");
+        }
+    };
+
+    const handleCancelBuild = async (buildId: number) => {
+        if (!projectId) return;
+
+        setBuildError(null);
+
+        try {
+            await cancelBuild(Number(projectId), buildId);
+            await loadBuilds();
+        } catch {
+            setBuildError("Failed to cancel build");
         }
     };
 
@@ -587,11 +601,12 @@ function ProjectDetailsPage() {
                             </p>
                         </div>
                     ) : (
-                        <BuildList
-                            builds={builds}
-                            onViewLogs={handleViewLogs}
-                            onRetryBuild={handleRetryBuild}
-                        />
+                            <BuildList
+                                builds={builds}
+                                onViewLogs={handleViewLogs}
+                                onRetryBuild={handleRetryBuild}
+                                onCancelBuild={handleCancelBuild}
+                            />
 
 
                     )}

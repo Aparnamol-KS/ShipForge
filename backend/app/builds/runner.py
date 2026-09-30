@@ -2,7 +2,7 @@ from pathlib import Path
 
 from app.builds.docker_executor import run_command
 from app.builds.log_service import create_build_log
-from app.builds.service import transition_build
+from app.builds.service import transition_build,get_build
 from app.builds.workspace_service import (
     cleanup_workspace,
     create_workspace,
@@ -11,7 +11,19 @@ from app.database.connection import SessionLocal
 from app.database.models import Build, BuildStage, BuildStatus
 from app.repositories.service import clone_repository
 from sqlalchemy.orm import Session
+from datetime import datetime, timezone
 
+def is_build_cancelled(
+    db: Session,
+    project_id: int,
+    build_id: int,
+) -> bool:
+    build = get_build(db, project_id, build_id)
+
+    if build is None:
+        return False
+
+    return build.status == BuildStatus.CANCELLED
 
 def run_build(
     project_id: int,
@@ -64,9 +76,24 @@ def run_build(
         ]
 
         for stage_name, command in commands:
+            if is_build_cancelled(db, project_id, build_id):
+                build.stage = None
+                build.finished_at = datetime.now(timezone.utc)
+                db.commit()
+
+                if event_publisher:
+                    event_publisher(
+                        build_id,
+                        {
+                            "type": "status",
+                            "status": BuildStatus.CANCELLED.value,
+                        },
+                    )
+
+                return
+
             if not command:
                 continue
-
             build.stage = BuildStage(stage_name)
             db.commit()
             if event_publisher is not None:
@@ -80,6 +107,12 @@ def run_build(
             exit_code, output = command_runner(
                 command,
                 workspace=workspace,
+                build_id=build_id,
+                is_cancelled=lambda: is_build_cancelled(
+                    db,
+                    project_id,
+                    build_id,
+                ),
             )
 
             stage_output = f"[{stage_name}]\n{output}"

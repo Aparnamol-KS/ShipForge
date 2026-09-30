@@ -36,7 +36,7 @@ export interface Build {
     build_number: number;
     branch: string | null;
     commit_sha: string | null;
-    status: "queued" | "running" | "success" | "failed";
+    status: "queued" | "running" | "success" | "failed" | "cancelled";
     stage: "install" | "test" | "build" | null;
     failed_stage: "install" | "test" | "build" | null;
     created_at: string;
@@ -129,6 +129,17 @@ export async function retryBuild(
 ): Promise<Build> {
     const response = await apiClient.post<Build>(
         `/projects/${projectId}/builds/${buildId}/retry`,
+    );
+
+    return response.data;
+}
+
+export async function cancelBuild(
+    projectId: number,
+    buildId: number,
+): Promise<Build> {
+    const response = await apiClient.post<Build>(
+        `/projects/${projectId}/builds/${buildId}/cancel`,
     );
 
     return response.data;

@@ -5,6 +5,7 @@ interface BuildListProps {
     builds: Build[];
     onViewLogs: (buildId: number) => void;
     onRetryBuild: (buildId: number) => void;
+    onCancelBuild: (buildId: number) => void;
 }
 
 
@@ -35,6 +36,11 @@ const statusStyles: Record<
         dot: "bg-red-500",
         text: "text-red-400",
         background: "border-red-900/40 bg-red-950/20",
+    },
+    cancelled: {
+        dot: "bg-zinc-500",
+        text: "text-zinc-400",
+        background: "border-zinc-700/40 bg-zinc-800/20",
     },
 };
 
@@ -78,6 +84,7 @@ function BuildList({
     builds,
     onViewLogs,
     onRetryBuild,
+    onCancelBuild,
 }: BuildListProps) {
 
     if (builds.length === 0) {
@@ -189,6 +196,15 @@ function BuildList({
                                     className="rounded-lg border border-amber-800 px-3 py-1.5 text-sm text-amber-400 transition hover:border-amber-600 hover:text-amber-300"
                                 >
                                     Retry
+                                </button>
+                            )}
+                            {(build.status === "queued" || build.status === "running") && (
+                                <button
+                                    type="button"
+                                    onClick={() => onCancelBuild(build.id)}
+                                    className="rounded-lg border border-red-900/60 px-3 py-1.5 text-sm text-red-400 transition hover:border-red-700 hover:text-red-300"
+                                >
+                                    Cancel
                                 </button>
                             )}
                         </div>

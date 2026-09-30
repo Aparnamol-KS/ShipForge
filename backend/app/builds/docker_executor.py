@@ -1,6 +1,6 @@
 import subprocess
 from pathlib import Path
-
+from collections.abc import Callable
 
 BUILD_WORKSPACE_VOLUME = "shipforge_build_workspaces"
 BUILD_NETWORK = "shipforge_default"
@@ -8,6 +8,8 @@ BUILD_NETWORK = "shipforge_default"
 def run_command(
     command: str,
     workspace: Path | None = None,
+    build_id: int | None = None,
+    is_cancelled: Callable[[], bool] | None = None,
 ) -> tuple[int, str]:
 
     docker_command = [
@@ -25,6 +27,14 @@ def run_command(
         "-e",
         "REDIS_URL=redis://redis:6379/0",
     ]
+
+    if build_id is not None:
+        docker_command.extend(
+            [
+                "--name",
+                f"shipforge-build-{build_id}",
+            ]
+        )
 
     if workspace is not None:
         workspace_name = workspace.name
@@ -47,12 +57,43 @@ def run_command(
         ]
     )
 
-    result = subprocess.run(
-        docker_command,
+    process = subprocess.Popen(
+            docker_command,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+
+    while process.poll() is None:
+        if is_cancelled is not None and is_cancelled():
+            if build_id is not None:
+                stop_build_container(build_id)
+
+            process.wait()
+            break
+
+        try:
+            process.wait(timeout=0.5)
+        except subprocess.TimeoutExpired:
+            continue
+
+    stdout, stderr = process.communicate()
+    output = stdout + stderr
+
+    return process.returncode, output
+
+
+def stop_build_container(build_id: int) -> None:
+    container_name = f"shipforge-build-{build_id}"
+
+    subprocess.run(
+        [
+            "docker",
+            "stop",
+            container_name,
+        ],
         capture_output=True,
         text=True,
+        check=False,
     )
-
-    output = result.stdout + result.stderr
-
-    return result.returncode, output

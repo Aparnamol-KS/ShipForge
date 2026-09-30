@@ -8,6 +8,7 @@ from app.builds.service import (
     get_builds,
     retry_build,
     transition_build,
+    cancel_build
 )
 from app.builds.tasks import schedule_build
 from app.builds.websocket import manager
@@ -125,6 +126,21 @@ def retry_build_endpoint(
 
     return build
 
+@router.post("/{build_id}/cancel", response_model=BuildResponse)
+def cancel_build_endpoint(
+    project_id: int,
+    build_id: int,
+    db: Session = Depends(get_db),
+):
+    try:
+        build = cancel_build(db, project_id, build_id)
+    except InvalidBuildTransitionError as error:
+        raise HTTPException(status_code=400, detail=str(error))
+
+    if build is None:
+        raise HTTPException(status_code=404, detail="Build not found")
+
+    return build
 
 @router.get(
     "/{build_id}",

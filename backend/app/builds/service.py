@@ -103,6 +103,30 @@ def retry_build(
         commit_sha=build.commit_sha,
     )
 
+def cancel_build(
+    db: Session,
+    project_id: int,
+    build_id: int,
+) -> Build | None:
+    build = get_build(db, project_id, build_id)
+
+    if build is None:
+        return None
+
+    if build.status not in {
+        BuildStatus.QUEUED,
+        BuildStatus.RUNNING,
+    }:
+        raise InvalidBuildTransitionError(
+            "Only queued or running builds can be cancelled"
+        )
+
+    return transition_build(
+        db,
+        project_id,
+        build_id,
+        BuildStatus.CANCELLED,
+    )
 
 def transition_build(
     db: Session,
@@ -124,13 +148,16 @@ def transition_build(
     allowed_transitions = {
         BuildStatus.QUEUED: {
             BuildStatus.RUNNING,
+            BuildStatus.CANCELLED,
         },
         BuildStatus.RUNNING: {
             BuildStatus.SUCCESS,
             BuildStatus.FAILED,
+            BuildStatus.CANCELLED,
         },
         BuildStatus.SUCCESS: set(),
         BuildStatus.FAILED: set(),
+        BuildStatus.CANCELLED: set(),
     }
 
     if new_status not in allowed_transitions[current_status]:
@@ -148,6 +175,7 @@ def transition_build(
     if new_status in {
         BuildStatus.SUCCESS,
         BuildStatus.FAILED,
+        BuildStatus.CANCELLED,
     }:
         build.finished_at = now
 

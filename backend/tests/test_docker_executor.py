@@ -1,4 +1,4 @@
-from app.builds.docker_executor import run_command
+from app.builds.docker_executor import run_command, stop_build_container
 from pathlib import Path
 import subprocess
 
@@ -48,3 +48,25 @@ def test_run_command_with_workspace(tmp_path: Path):
 
     assert exit_code == 0
     assert "Hello from ShipForge" in output
+
+
+def test_stop_build_container(monkeypatch):
+    calls = []
+
+    def fake_run(command, **kwargs):
+        calls.append(command)
+
+    monkeypatch.setattr(
+        "app.builds.docker_executor.subprocess.run",
+        fake_run,
+    )
+
+    stop_build_container(55)
+
+    assert calls == [
+        [
+            "docker",
+            "stop",
+            "shipforge-build-55",
+        ]
+    ]
