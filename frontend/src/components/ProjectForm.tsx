@@ -16,6 +16,8 @@ function ProjectForm({
     const [description, setDescription] = useState("");
     const [repositoryUrl, setRepositoryUrl] = useState("");
     const [buildCommand, setBuildCommand] = useState("");
+    const [installCommand, setInstallCommand] = useState("");
+    const [testCommand, setTestCommand] = useState("");
     const [creating, setCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -32,7 +34,9 @@ function ProjectForm({
                 name,
                 description: description || undefined,
                 repository_url: repositoryUrl || undefined,
-                build_command: buildCommand || undefined
+                install_command: installCommand || undefined,
+                test_command: testCommand || undefined,
+                build_command: buildCommand || undefined,
             });
 
             onProjectCreated(project);
@@ -40,6 +44,8 @@ function ProjectForm({
             setName("");
             setDescription("");
             setRepositoryUrl("");
+            setInstallCommand("");
+            setTestCommand("");
             setBuildCommand("");
         } catch {
             setError("Failed to create project");
@@ -124,6 +130,43 @@ function ProjectForm({
                     />
                 </div>
 
+                {/* Install Command */}
+                <div>
+                    <label
+                        htmlFor="install-command"
+                        className="mb-2 block text-sm font-medium text-zinc-300"
+                    >
+                        Install Command
+                    </label>
+                    <input
+                        id="install-command"
+                        type="text"
+                        value={installCommand}
+                        onChange={(event) => setInstallCommand(event.target.value)}
+                        placeholder="pip install -r requirements.txt"
+                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
+                    />
+                </div>
+
+                {/* Test Command */}
+                <div>
+                    <label
+                        htmlFor="test-command"
+                        className="mb-2 block text-sm font-medium text-zinc-300"
+                    >
+                        Test Command
+                    </label>
+                    <input
+                        id="test-command"
+                        type="text"
+                        value={testCommand}
+                        onChange={(event) => setTestCommand(event.target.value)}
+                        placeholder="pytest"
+                        className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2.5 text-sm text-zinc-100 outline-none transition placeholder:text-zinc-600 focus:border-zinc-500"
+                    />
+                </div>
+
+                {/* Build Command */}
                 <div>
                     <label
                         htmlFor="build-command"
@@ -131,7 +174,6 @@ function ProjectForm({
                     >
                         Build Command
                     </label>
-
                     <input
                         id="build-command"
                         type="text"
